@@ -236,32 +236,32 @@ export const LoanCard: React.FC<LoanCardProps> = ({ loan, index }) => {
   const statusStyle = getStatusStyle();
 
   return (
-    <AnimatedTouchable
-      entering={FadeInUp.delay(200 + index * 100).duration(400)}
-      onPress={handleManagePress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      style={[styles.container, animatedStyle]}
-      activeOpacity={0.9}
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.loanInfo}>
-          <View
-            style={[styles.iconContainer, { backgroundColor: purposeConfig.bgColor }]}
-          >
-            <MaterialIcons
-              name={purposeConfig.icon as any}
-              size={20}
-              color={purposeConfig.color}
-            />
+    <Animated.View entering={FadeInUp.delay(200 + index * 100).duration(400)}>
+      <AnimatedTouchable
+        onPress={handleManagePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={[styles.container, animatedStyle]}
+        activeOpacity={0.9}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.loanInfo}>
+            <View
+              style={[styles.iconContainer, { backgroundColor: purposeConfig.bgColor }]}
+            >
+              <MaterialIcons
+                name={purposeConfig.icon as any}
+                size={20}
+                color={purposeConfig.color}
+              />
+            </View>
+            <View>
+              <Text style={styles.loanTitle}>{loan.title}</Text>
+              <Text style={styles.loanId}>ID: {loan.loanId}</Text>
+            </View>
           </View>
-          <View>
-            <Text style={styles.loanTitle}>{loan.title}</Text>
-            <Text style={styles.loanId}>ID: {loan.loanId}</Text>
-          </View>
-        </View>
-        <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
+          <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
           <Text style={[styles.statusText, { color: statusStyle.text }]}>
             {statusStyle.label}
           </Text>
@@ -315,6 +315,7 @@ export const LoanCard: React.FC<LoanCardProps> = ({ loan, index }) => {
         </TouchableOpacity>
       </View>
     </AnimatedTouchable>
+    </Animated.View>
   );
 };
 

@@ -119,34 +119,35 @@ const TransactionItem: React.FC<TransactionItemProps> = ({
   const amountColor = transaction.amount > 0 ? "#22c55e" : colors.onSurface;
 
   return (
-    <AnimatedTouchable
-      entering={FadeInUp.delay(400 + index * 50).duration(300)}
-      onPress={handlePress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      style={[styles.transactionItem, animatedStyle]}
-      activeOpacity={0.7}
-    >
-      <View style={styles.transactionContent}>
-        <View style={styles.leftSection}>
-          <View style={[styles.iconContainer, { backgroundColor: bgColor }]}>
-            <MaterialIcons name={iconName as any} size={20} color={iconColor} />
+    <Animated.View entering={FadeInUp.delay(400 + index * 50).duration(300)}>
+      <AnimatedTouchable
+        onPress={handlePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={[styles.transactionItem, animatedStyle]}
+        activeOpacity={0.7}
+      >
+        <View style={styles.transactionContent}>
+          <View style={styles.leftSection}>
+            <View style={[styles.iconContainer, { backgroundColor: bgColor }]}>
+              <MaterialIcons name={iconName as any} size={20} color={iconColor} />
+            </View>
+            <View style={styles.textContainer}>
+              <Text style={styles.transactionTitle}>{transaction.title}</Text>
+              <Text style={styles.transactionDate}>
+                {transaction.date} • {transaction.time}
+              </Text>
+            </View>
           </View>
-          <View style={styles.textContainer}>
-            <Text style={styles.transactionTitle}>{transaction.title}</Text>
-            <Text style={styles.transactionDate}>
-              {transaction.date} • {transaction.time}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.rightSection}>
-          <Text style={[styles.transactionAmount, { color: amountColor }]}>
-            {formatCurrency(transaction.amount)}
+          <View style={styles.rightSection}>
+            <Text style={[styles.transactionAmount, { color: amountColor }]}>
+              {formatCurrency(transaction.amount)}
           </Text>
           <Text style={styles.transactionStatus}>{transaction.status.toUpperCase()}</Text>
         </View>
       </View>
     </AnimatedTouchable>
+    </Animated.View>
   );
 };
 

@@ -71,34 +71,35 @@ const TransactionItem: React.FC<TransactionItemProps> = ({
   const dynamicStyles = createTransactionStyles(colors);
 
   return (
-    <AnimatedTouchable
-      entering={FadeInUp.delay(300 + index * 50).duration(300)}
-      onPress={handlePress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      style={[dynamicStyles.transactionItem, animatedStyle]}
-      activeOpacity={0.7}
-    >
-      <View style={dynamicStyles.leftSection}>
-        <View style={[dynamicStyles.iconContainer, { backgroundColor: bgColor }]}>
-          <MaterialIcons name={iconName as any} size={20} color={iconColor} />
+    <Animated.View entering={FadeInUp.delay(300 + index * 50).duration(300)}>
+      <AnimatedTouchable
+        onPress={handlePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={[dynamicStyles.transactionItem, animatedStyle]}
+        activeOpacity={0.7}
+      >
+        <View style={dynamicStyles.leftSection}>
+          <View style={[dynamicStyles.iconContainer, { backgroundColor: bgColor }]}>
+            <MaterialIcons name={iconName as any} size={20} color={iconColor} />
+          </View>
+          <View style={dynamicStyles.textContainer}>
+            <Text style={dynamicStyles.transactionTitle}>{transaction.title}</Text>
+            <Text style={dynamicStyles.transactionDate}>
+              {transaction.date} • {transaction.time}
+            </Text>
+          </View>
         </View>
-        <View style={dynamicStyles.textContainer}>
-          <Text style={dynamicStyles.transactionTitle}>{transaction.title}</Text>
-          <Text style={dynamicStyles.transactionDate}>
-            {transaction.date} • {transaction.time}
+        <View style={dynamicStyles.rightSection}>
+          <Text style={[dynamicStyles.transactionAmount, { color: amountColor }]}>
+            {formatCurrency(transaction.amount)}
+          </Text>
+          <Text style={dynamicStyles.transactionStatus}>
+            {transaction.status.toUpperCase()}
           </Text>
         </View>
-      </View>
-      <View style={dynamicStyles.rightSection}>
-        <Text style={[dynamicStyles.transactionAmount, { color: amountColor }]}>
-          {formatCurrency(transaction.amount)}
-        </Text>
-        <Text style={dynamicStyles.transactionStatus}>
-          {transaction.status.toUpperCase()}
-        </Text>
-      </View>
-    </AnimatedTouchable>
+      </AnimatedTouchable>
+    </Animated.View>
   );
 };
 
@@ -153,15 +154,16 @@ export default function SavingsScreen() {
         <PortfolioCard />
 
         {/* Add Contribution Button */}
-        <AnimatedTouchable
-          entering={FadeInUp.delay(200).duration(400)}
-          onPress={handleAddContribution}
-          style={dynamicStyles.addButton}
-          activeOpacity={0.8}
-        >
-          <MaterialIcons name="add-circle" size={20} color={colors.onPrimary} />
-          <Text style={dynamicStyles.addButtonText}>Add Contribution</Text>
-        </AnimatedTouchable>
+        <Animated.View entering={FadeInUp.delay(200).duration(400)}>
+          <AnimatedTouchable
+            onPress={handleAddContribution}
+            style={dynamicStyles.addButton}
+            activeOpacity={0.8}
+          >
+            <MaterialIcons name="add-circle" size={20} color={colors.onPrimary} />
+            <Text style={dynamicStyles.addButtonText}>Add Contribution</Text>
+          </AnimatedTouchable>
+        </Animated.View>
 
         {/* Transaction History */}
         <View style={dynamicStyles.historySection}>

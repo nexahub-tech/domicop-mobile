@@ -87,19 +87,20 @@ const QuickActionItem: React.FC<QuickActionItemProps> = ({
   };
 
   return (
-    <AnimatedTouchable
-      entering={FadeInUp.delay(200 + index * 50).duration(300)}
-      onPress={handlePress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      style={[styles.actionItem, animatedStyle]}
-      activeOpacity={0.8}
-    >
-      <View style={styles.iconContainer}>
-        <MaterialIcons name={icon as any} size={28} color={colors.primary} />
-      </View>
-      <Text style={styles.actionLabel}>{label}</Text>
-    </AnimatedTouchable>
+    <Animated.View entering={FadeInUp.delay(200 + index * 50).duration(300)}>
+      <AnimatedTouchable
+        onPress={handlePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={[styles.actionItem, animatedStyle]}
+        activeOpacity={0.8}
+      >
+        <View style={styles.iconContainer}>
+          <MaterialIcons name={icon as any} size={28} color={colors.primary} />
+        </View>
+        <Text style={styles.actionLabel}>{label}</Text>
+      </AnimatedTouchable>
+    </Animated.View>
   );
 };
 

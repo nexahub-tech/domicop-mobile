@@ -170,22 +170,23 @@ export const ProfileHeader: React.FC = () => {
       {/* Profile Info */}
       <View style={styles.profileContainer}>
         <View style={styles.avatarSection}>
-          <AnimatedTouchable
-            entering={FadeInUp.delay(100).duration(400)}
-            onPress={handleEditAvatarPress}
-            onPressIn={handlePressIn}
-            onPressOut={handlePressOut}
-            style={[styles.avatarContainer, animatedStyle]}
-            activeOpacity={0.8}
-          >
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{initials}</Text>
-            </View>
-            {/* Edit Icon */}
-            <View style={styles.editIconContainer}>
-              <MaterialIcons name="edit" size={14} color={colors.onPrimary} />
-            </View>
-          </AnimatedTouchable>
+          <Animated.View entering={FadeInUp.delay(100).duration(400)}>
+            <AnimatedTouchable
+              onPress={handleEditAvatarPress}
+              onPressIn={handlePressIn}
+              onPressOut={handlePressOut}
+              style={[styles.avatarContainer, animatedStyle]}
+              activeOpacity={0.8}
+            >
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{initials}</Text>
+              </View>
+              {/* Edit Icon */}
+              <View style={styles.editIconContainer}>
+                <MaterialIcons name="edit" size={14} color={colors.onPrimary} />
+              </View>
+            </AnimatedTouchable>
+          </Animated.View>
         </View>
 
         {/* Name and Info */}

@@ -141,38 +141,39 @@ const SettingsItem: React.FC<SettingsItemProps> = ({
   const isLastItem = index === mockProfileSettings[sectionIndex].items.length - 1;
 
   return (
-    <AnimatedTouchable
-      entering={FadeInUp.delay(300 + sectionIndex * 100 + index * 50).duration(300)}
-      onPress={handlePress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      style={[styles.item, !isLastItem && styles.itemBorder, animatedStyle]}
-      activeOpacity={0.7}
-    >
-      <View
-        style={[
-          styles.iconContainer,
-          item.destructive && styles.destructiveIconContainer,
-        ]}
+    <Animated.View entering={FadeInUp.delay(300 + sectionIndex * 100 + index * 50).duration(300)}>
+      <AnimatedTouchable
+        onPress={handlePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={[styles.item, !isLastItem && styles.itemBorder, animatedStyle]}
+        activeOpacity={0.7}
       >
+        <View
+          style={[
+            styles.iconContainer,
+            item.destructive && styles.destructiveIconContainer,
+          ]}
+        >
+          <MaterialIcons
+            name={item.icon as any}
+            size={24}
+            color={item.destructive ? colors.error : colors.primary}
+          />
+        </View>
+        <View style={styles.textContainer}>
+          <Text style={[styles.itemTitle, item.destructive && styles.destructiveText]}>
+            {item.title}
+          </Text>
+          {item.subtitle && <Text style={styles.itemSubtitle}>{item.subtitle}</Text>}
+        </View>
         <MaterialIcons
-          name={item.icon as any}
+          name="chevron-right"
           size={24}
-          color={item.destructive ? colors.error : colors.primary}
+          color={item.destructive ? colors.error : colors.outline}
         />
-      </View>
-      <View style={styles.textContainer}>
-        <Text style={[styles.itemTitle, item.destructive && styles.destructiveText]}>
-          {item.title}
-        </Text>
-        {item.subtitle && <Text style={styles.itemSubtitle}>{item.subtitle}</Text>}
-      </View>
-      <MaterialIcons
-        name="chevron-right"
-        size={24}
-        color={item.destructive ? colors.error : colors.outline}
-      />
-    </AnimatedTouchable>
+      </AnimatedTouchable>
+    </Animated.View>
   );
 };
 

@@ -93,27 +93,28 @@ export default function LoansScreen() {
         <LoanSummaryStats />
 
         {/* Apply for New Loan Button */}
-        <AnimatedTouchable
-          entering={FadeInUp.delay(100).duration(400)}
-          onPress={handleApplyForLoan}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
-          style={[dynamicStyles.applyButton, animatedStyle]}
-          activeOpacity={0.8}
-        >
-          <View style={dynamicStyles.applyButtonContent}>
-            <View style={dynamicStyles.applyIconContainer}>
-              <MaterialIcons name="add-circle" size={28} color={colors.onPrimary} />
+        <Animated.View entering={FadeInUp.delay(100).duration(400)}>
+          <AnimatedTouchable
+            onPress={handleApplyForLoan}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+            style={[dynamicStyles.applyButton, animatedStyle]}
+            activeOpacity={0.8}
+          >
+            <View style={dynamicStyles.applyButtonContent}>
+              <View style={dynamicStyles.applyIconContainer}>
+                <MaterialIcons name="add-circle" size={28} color={colors.onPrimary} />
+              </View>
+              <View style={dynamicStyles.applyTextContainer}>
+                <Text style={dynamicStyles.applyButtonTitle}>Apply for New Loan</Text>
+                <Text style={dynamicStyles.applyButtonSubtitle}>
+                  Instant approval for qualified members
+                </Text>
+              </View>
             </View>
-            <View style={dynamicStyles.applyTextContainer}>
-              <Text style={dynamicStyles.applyButtonTitle}>Apply for New Loan</Text>
-              <Text style={dynamicStyles.applyButtonSubtitle}>
-                Instant approval for qualified members
-              </Text>
-            </View>
-          </View>
-          <MaterialIcons name="chevron-right" size={24} color={colors.onPrimary} />
-        </AnimatedTouchable>
+            <MaterialIcons name="chevron-right" size={24} color={colors.onPrimary} />
+          </AnimatedTouchable>
+        </Animated.View>
 
         {/* Active Loans Section */}
         <View style={dynamicStyles.sectionHeader}>
