@@ -18,6 +18,7 @@ import { theme } from "@/styles/theme";
 import { typography } from "@/constants/typography";
 import { SuccessModal } from "@/components/modals/SuccessModal";
 import { mockLoans, formatCurrency } from "@/data/mockData";
+import { usePaystackPayment } from "@/hooks/usePaystackPayment";
 
 interface Loan {
   id: string;
@@ -30,25 +31,17 @@ interface Loan {
   };
 }
 
-interface PaymentMethod {
-  id: string;
-  type: "card" | "bank" | "wallet";
-  name: string;
-  details: string;
-  icon: string;
-}
-
 export default function MakePaymentScreen() {
   const router = useRouter();
   const { colors, isDarkMode } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = createStyles(colors, insets.bottom);
+  const { initiateLoanPayment } = usePaystackPayment();
 
   // State
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [paymentType, setPaymentType] = useState<"full" | "partial">("full");
   const [amount, setAmount] = useState("");
-  const [selectedMethod, setSelectedMethod] = useState<string>("");
   const [showSuccess, setShowSuccess] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -62,38 +55,9 @@ export default function MakePaymentScreen() {
       nextPayment: loan.nextPayment,
     }));
 
-  const paymentMethods: PaymentMethod[] = [
-    {
-      id: "card1",
-      type: "card",
-      name: "Visa ending in 4242",
-      details: "Expires 12/25",
-      icon: "credit-card",
-    },
-    {
-      id: "card2",
-      type: "card",
-      name: "Mastercard ending in 8888",
-      details: "Expires 08/26",
-      icon: "credit-card",
-    },
-    {
-      id: "bank1",
-      type: "bank",
-      name: "First Bank of Nigeria",
-      details: "**** 1234",
-      icon: "account-balance",
-    },
-    {
-      id: "wallet",
-      type: "wallet",
-      name: "DOMICOP Wallet",
-      details: "Balance: ₦50,000",
-      icon: "account-balance-wallet",
-    },
-  ];
-
   const quickAmounts = ["1,000", "5,000", "10,000", "50,000"];
+
+  // Removed mock payment methods - using Paystack instead
 
   const handleBack = () => {
     router.back();
@@ -136,21 +100,62 @@ export default function MakePaymentScreen() {
   };
 
   const handleConfirmPayment = async () => {
-    if (!selectedLoan || !amount || !selectedMethod) {
+    if (!selectedLoan || !amount) {
       Alert.alert(
         "Missing Information",
-        "Please select a loan, enter an amount, and choose a payment method.",
+        "Please select a loan and enter an amount.",
       );
       return;
     }
 
     setIsProcessing(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    const numericAmount = parseFloat(amount) || 0;
 
-    setIsProcessing(false);
-    setShowSuccess(true);
+    // Initiate Paystack payment for loan repayment
+    initiateLoanPayment({
+      amount: numericAmount,
+      loanId: selectedLoan.id,
+      metadata: {
+        custom_fields: [
+          {
+            display_name: "Loan Title",
+            variable_name: "loan_title",
+            value: selectedLoan.title,
+          },
+          {
+            display_name: "Payment Type",
+            variable_name: "payment_type",
+            value: paymentType === "full" ? "Full Payment" : "Partial Payment",
+          },
+          {
+            display_name: "Remaining Balance",
+            variable_name: "remaining_balance",
+            value: `₦${formatCurrency(selectedLoan.remainingBalance)}`,
+          },
+        ],
+      },
+      onSuccess: (response) => {
+        setIsProcessing(false);
+        console.log("Loan payment successful:", response);
+        setShowSuccess(true);
+      },
+      onCancel: () => {
+        setIsProcessing(false);
+        Alert.alert(
+          "Payment Cancelled",
+          "You cancelled the payment. Your loan repayment was not processed.",
+        );
+      },
+      onError: (error) => {
+        setIsProcessing(false);
+        Alert.alert(
+          "Payment Failed",
+          "There was an error processing your payment. Please try again.",
+        );
+        console.error("Payment error:", error);
+      },
+    });
   };
 
   const handleSuccessClose = () => {
@@ -330,46 +335,28 @@ export default function MakePaymentScreen() {
           </View>
         </Animated.View>
 
-        {/* Payment Method */}
+        {/* Payment Info */}
         <Animated.View
           entering={FadeInUp.delay(400).duration(400)}
           style={styles.section}
         >
           <Text style={styles.sectionTitle}>Payment Method</Text>
-          {paymentMethods.map((method) => (
-            <TouchableOpacity
-              key={method.id}
-              style={[
-                styles.methodCard,
-                selectedMethod === method.id && styles.methodCardActive,
-              ]}
-              onPress={() => setSelectedMethod(method.id)}
+          <View style={[styles.methodCard, styles.methodCardActive]}>
+            <View
+              style={[styles.methodIcon, { backgroundColor: `${colors.primary}10` }]}
             >
-              <View
-                style={[styles.methodIcon, { backgroundColor: `${colors.primary}10` }]}
-              >
-                <MaterialIcons
-                  name={method.icon as any}
-                  size={20}
-                  color={colors.primary}
-                />
-              </View>
-              <View style={styles.methodInfo}>
-                <Text style={styles.methodName}>{method.name}</Text>
-                <Text style={styles.methodDetails}>{method.details}</Text>
-              </View>
-              <View style={styles.radioContainer}>
-                <View
-                  style={[
-                    styles.radioButton,
-                    selectedMethod === method.id && styles.radioButtonActive,
-                  ]}
-                >
-                  {selectedMethod === method.id && <View style={styles.radioInner} />}
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))}
+              <MaterialIcons
+                name="credit-card"
+                size={20}
+                color={colors.primary}
+              />
+            </View>
+            <View style={styles.methodInfo}>
+              <Text style={styles.methodName}>Paystack Secure Checkout</Text>
+              <Text style={styles.methodDetails}>Card, Bank Transfer, USSD, QR</Text>
+            </View>
+            <MaterialIcons name="verified" size={20} color={colors.success} />
+          </View>
         </Animated.View>
 
         {/* Transaction Summary */}
@@ -403,18 +390,21 @@ export default function MakePaymentScreen() {
         <TouchableOpacity
           style={[
             styles.confirmButton,
-            (!selectedLoan || !amount || !selectedMethod || isProcessing) &&
+            (!selectedLoan || !amount || isProcessing) &&
               styles.confirmButtonDisabled,
           ]}
           onPress={handleConfirmPayment}
-          disabled={!selectedLoan || !amount || !selectedMethod || isProcessing}
+          disabled={!selectedLoan || !amount || isProcessing}
         >
           {isProcessing ? (
-            <Text style={styles.confirmButtonText}>Processing...</Text>
-          ) : (
             <>
               <MaterialIcons name="lock" size={20} color={colors.onPrimary} />
-              <Text style={styles.confirmButtonText}>Confirm Payment</Text>
+              <Text style={styles.confirmButtonText}>Opening Secure Payment...</Text>
+            </>
+          ) : (
+            <>
+              <MaterialIcons name="credit-card" size={20} color={colors.onPrimary} />
+              <Text style={styles.confirmButtonText}>Proceed to Payment</Text>
             </>
           )}
         </TouchableOpacity>
