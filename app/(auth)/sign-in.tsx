@@ -8,7 +8,6 @@ import { HeroSection } from "@/components/auth/HeroSection";
 import { BackButton } from "@/components/auth/BackButton";
 import { SecurityBadge } from "@/components/auth/SecurityBadge";
 import { FormCard } from "@/components/auth/FormCard";
-import { SocialLoginButton } from "@/components/auth/SocialLoginButton";
 import { Checkbox } from "@/components/forms/Checkbox";
 import { KeyboardAwareWrapper } from "@/components/auth/KeyboardAwareWrapper";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -25,11 +24,6 @@ export default function SignInScreen() {
   const [rememberMe, setRememberMe] = useState(false);
 
   const handleSignIn = () => {
-    // Navigate to home dashboard
-    router.replace("/(tabs)");
-  };
-
-  const handleGoogleSignIn = () => {
     // Navigate to home dashboard
     router.replace("/(tabs)");
   };
@@ -115,20 +109,7 @@ export default function SignInScreen() {
                 icon="arrow.right"
               />
 
-              {/* Social Divider */}
-              <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>Or continue with</Text>
-                <View style={styles.dividerLine} />
-              </View>
 
-              {/* Google Login - Single centered button */}
-              <View style={styles.socialContainer}>
-                <SocialLoginButton
-                  onPress={handleGoogleSignIn}
-                  style={styles.socialButton}
-                />
-              </View>
             </FormCard>
 
             {/* Footer */}
@@ -201,31 +182,6 @@ const createStyles = (colors: typeof lightColors) =>
       color: colors.primary,
       textTransform: "uppercase",
       letterSpacing: theme.typography.letterSpacing.wider,
-    },
-    divider: {
-      flexDirection: "row",
-      alignItems: "center",
-      marginVertical: theme.spacing.md,
-    },
-    dividerLine: {
-      flex: 1,
-      height: 1,
-      backgroundColor: colors.outlineVariant,
-    },
-    dividerText: {
-      fontFamily: theme.typography.fontFamily.label,
-      fontSize: theme.typography.size.xs,
-      fontWeight: theme.typography.fontWeight.bold as any,
-      color: colors.onSurfaceVariant,
-      textTransform: "uppercase",
-      letterSpacing: theme.typography.letterSpacing.widest,
-      marginHorizontal: theme.spacing.md,
-    },
-    socialContainer: {
-      alignItems: "center",
-    },
-    socialButton: {
-      width: "100%",
     },
     footer: {
       marginTop: theme.spacing.xl,

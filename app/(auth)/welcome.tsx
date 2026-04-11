@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Button } from "@/components/common/Button";
-import { SocialLoginButton } from "@/components/auth/SocialLoginButton";
 import { SecurityBadge } from "@/components/auth/SecurityBadge";
 import { HeroSection } from "@/components/auth/HeroSection";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -24,11 +23,6 @@ export default function WelcomeScreen() {
     router.push("/sign-in");
   };
 
-  const handleGoogleSignIn = () => {
-    // TODO: Implement Google Sign In
-    console.log("Google Sign In");
-  };
-
   return (
     <View style={styles.container}>
       {/* Security Badge - positioned with top inset */}
@@ -45,24 +39,12 @@ export default function WelcomeScreen() {
         <HeroSection
           title="Let's Get Started!"
           subtitle="The institutional ledger for your cooperative digital archive and assets."
-          height={320}
+          height={620}
           imageSource={require("@/assets/images/auth/hero-welcome.jpg")}
         />
 
         {/* Main Content */}
         <View style={[styles.content, { paddingBottom: insets.bottom }]}>
-          {/* Social Login */}
-          <View style={styles.socialSection}>
-            <SocialLoginButton onPress={handleGoogleSignIn} fullWidth />
-          </View>
-
-          {/* Divider */}
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or use email</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
           {/* Primary Actions */}
           <View style={styles.actions}>
             <Button
@@ -125,28 +107,6 @@ const createStyles = (colors: typeof lightColors) =>
       maxWidth: 400,
       alignSelf: "center",
       width: "100%",
-    },
-    socialSection: {
-      marginBottom: theme.spacing.xl,
-    },
-    divider: {
-      flexDirection: "row",
-      alignItems: "center",
-      marginBottom: theme.spacing.xl,
-    },
-    dividerLine: {
-      flex: 1,
-      height: 1,
-      backgroundColor: colors.outlineVariant,
-    },
-    dividerText: {
-      fontFamily: theme.typography.fontFamily.label,
-      fontSize: theme.typography.size.xs,
-      fontWeight: theme.typography.fontWeight.bold as any,
-      color: colors.onSurfaceVariant,
-      textTransform: "uppercase",
-      letterSpacing: theme.typography.letterSpacing.widest,
-      marginHorizontal: theme.spacing.lg,
     },
     actions: {
       gap: theme.spacing.lg,

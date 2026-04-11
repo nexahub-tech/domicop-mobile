@@ -132,8 +132,8 @@ const createStyles = (colors: HeroSectionColors) =>
       alignItems: "center",
     },
     logoImage: {
-      width: 100,
-      height: 100,
+      width: 350,
+      height: 350,
     },
     iconContainer: {
       marginBottom: theme.spacing.lg,
