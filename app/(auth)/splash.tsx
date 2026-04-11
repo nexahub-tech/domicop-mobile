@@ -1,8 +1,7 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { SymbolView } from "expo-symbols";
 import { LinearGradient } from "expo-linear-gradient";
 import { Button } from "@/components/common/Button";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -11,7 +10,7 @@ import { theme } from "@/styles/theme";
 
 export default function SplashScreen() {
   const router = useRouter();
-  const { colors } = useTheme();
+  const { colors, isDarkMode } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = createStyles(colors);
 
@@ -34,23 +33,16 @@ export default function SplashScreen() {
         <View style={styles.content}>
           {/* Logo Section */}
           <View style={styles.logoWrapper}>
-            {/* Outer Glow */}
-            <View style={styles.glow} />
-
             {/* Logo Container */}
             <View style={styles.logoContainer}>
-              {/* Background Icon */}
-              <SymbolView
-                name="dollarsign.circle"
-                size={80}
-                tintColor={`${colors.onPrimary}1A`}
-                style={styles.backgroundIcon}
-              />
-              {/* Main Icon */}
-              <SymbolView
-                name="building.columns.fill"
-                size={48}
-                tintColor={colors.onPrimary}
+              <Image
+                source={
+                  isDarkMode
+                    ? require("@/assets/images/logos/domicop_logo.png")
+                    : require("@/assets/images/logos/domicop_logo_black.png")
+                }
+                style={styles.logoImage}
+                resizeMode="contain"
               />
             </View>
           </View>
@@ -122,30 +114,17 @@ const createStyles = (colors: typeof lightColors) =>
       paddingHorizontal: theme.spacing["2xl"],
     },
     logoWrapper: {
-      position: "relative",
       marginBottom: theme.spacing.xl,
     },
-    glow: {
-      position: "absolute",
-      inset: 0,
-      backgroundColor: colors.cobaltGlow,
-      borderRadius: 40,
-      transform: [{ scale: 1.1 }],
-    },
     logoContainer: {
-      width: 112,
-      height: 112,
-      backgroundColor: colors.primary,
-      borderRadius: 32,
+      width: 140,
+      height: 140,
       justifyContent: "center",
       alignItems: "center",
-      overflow: "hidden",
-      ...theme.shadows.xl,
     },
-    backgroundIcon: {
-      position: "absolute",
-      bottom: -10,
-      right: -10,
+    logoImage: {
+      width: 140,
+      height: 140,
     },
     brandName: {
       fontFamily: theme.typography.fontFamily.headline,

@@ -6,6 +6,7 @@ import {
   ImageBackground,
   ViewStyle,
   ImageSourcePropType,
+  Image,
 } from "react-native";
 import { SymbolView, SFSymbol } from "expo-symbols";
 import { LinearGradient } from "expo-linear-gradient";
@@ -37,7 +38,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   children,
   imageSource,
 }) => {
-  const { colors } = useTheme();
+  const { colors, isDarkMode } = useTheme();
   const styles = createStyles(colors);
 
   return (
@@ -66,15 +67,15 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
         <View style={styles.content}>
           {showLogo && (
             <View style={styles.logoContainer}>
-              <View style={styles.logoInner}>
-                <SymbolView
-                  name="building.columns"
-                  size={32}
-                  tintColor={colors.primary}
-                  style={styles.logoIcon}
-                />
-                <Text style={styles.logoText}>DOMICOP</Text>
-              </View>
+              <Image
+                source={
+                  isDarkMode
+                    ? require("@/assets/images/logos/domicop_logo.png")
+                    : require("@/assets/images/logos/domicop_logo_black.png")
+                }
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
             </View>
           )}
 
@@ -128,25 +129,11 @@ const createStyles = (colors: HeroSectionColors) =>
     },
     logoContainer: {
       marginBottom: theme.spacing.xl,
-    },
-    logoInner: {
-      flexDirection: "row",
       alignItems: "center",
-      backgroundColor: colors.surface,
-      paddingVertical: theme.spacing.md,
-      paddingHorizontal: theme.spacing.lg,
-      borderRadius: theme.borderRadius.xl,
-      ...theme.shadows.xl,
     },
-    logoIcon: {
-      marginRight: theme.spacing.md,
-    },
-    logoText: {
-      fontFamily: theme.typography.fontFamily.headline,
-      fontSize: theme.typography.size.lg,
-      fontWeight: theme.typography.fontWeight.extrabold as any,
-      color: colors.primary,
-      letterSpacing: theme.typography.letterSpacing.tight,
+    logoImage: {
+      width: 100,
+      height: 100,
     },
     iconContainer: {
       marginBottom: theme.spacing.lg,

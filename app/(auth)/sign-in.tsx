@@ -225,7 +225,7 @@ const createStyles = (colors: typeof lightColors) =>
       alignItems: "center",
     },
     socialButton: {
-      width: 120,
+      width: "100%",
     },
     footer: {
       marginTop: theme.spacing.xl,

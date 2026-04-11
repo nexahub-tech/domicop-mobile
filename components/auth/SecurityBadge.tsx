@@ -32,7 +32,7 @@ const createStyles = (colors: SecurityBadgeColors) =>
     container: {
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: "rgba(255, 255, 255, 0.8)",
+      backgroundColor: `${colors.surface}CC`,
       paddingVertical: theme.spacing.sm,
       paddingHorizontal: theme.spacing.md,
       borderRadius: theme.borderRadius.full,
