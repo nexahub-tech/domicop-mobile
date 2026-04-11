@@ -7,6 +7,7 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -25,6 +26,7 @@ import {
   MIN_CONTRIBUTION_AMOUNT,
 } from '@/data/mockData';
 import { SuccessModal } from '@/components/modals/SuccessModal';
+import { usePaystackPayment } from '@/hooks/usePaystackPayment';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -33,6 +35,7 @@ export default function AddContributionScreen() {
   const { colors, isDarkMode } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = getStyles(colors, insets.bottom);
+  const { initiateContributionPayment } = usePaystackPayment();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -74,11 +77,48 @@ export default function AddContributionScreen() {
 
     setIsSubmitting(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const numericAmount = parseFloat(amount.replace(/,/g, '')) || 0;
+    const selectedMonthLabel = contributionMonths.find(m => m.value === month)?.label || month;
+    const selectedSourceLabel = sourceOfFundsOptions.find(s => s.id === source)?.label || source;
 
-    setIsSubmitting(false);
-    setShowSuccess(true);
+    // Initiate Paystack payment
+    initiateContributionPayment({
+      amount: numericAmount,
+      metadata: {
+        custom_fields: [
+          {
+            display_name: 'Contribution Month',
+            variable_name: 'contribution_month',
+            value: selectedMonthLabel,
+          },
+          {
+            display_name: 'Source of Funds',
+            variable_name: 'source_of_funds',
+            value: selectedSourceLabel,
+          },
+        ],
+      },
+      onSuccess: (response) => {
+        setIsSubmitting(false);
+        console.log('Contribution payment successful:', response);
+        setShowSuccess(true);
+      },
+      onCancel: () => {
+        setIsSubmitting(false);
+        Alert.alert(
+          'Payment Cancelled',
+          'You cancelled the payment. Your contribution was not processed.'
+        );
+      },
+      onError: (error) => {
+        setIsSubmitting(false);
+        Alert.alert(
+          'Payment Failed',
+          'There was an error processing your payment. Please try again.'
+        );
+        console.error('Payment error:', error);
+      },
+    });
   };
 
   const handleSuccessClose = () => {
@@ -190,11 +230,14 @@ export default function AddContributionScreen() {
                 activeOpacity={0.8}
               >
                 {isSubmitting ? (
-                  <Text style={styles.submitButtonText}>Processing...</Text>
+                  <>
+                    <MaterialIcons name="lock" size={20} color={colors.onPrimary} />
+                    <Text style={styles.submitButtonText}>Opening Secure Payment...</Text>
+                  </>
                 ) : (
                   <>
-                    <MaterialIcons name="send" size={20} color={colors.onPrimary} />
-                    <Text style={styles.submitButtonText}>Submit Contribution</Text>
+                    <MaterialIcons name="credit-card" size={20} color={colors.onPrimary} />
+                    <Text style={styles.submitButtonText}>Proceed to Payment</Text>
                   </>
                 )}
               </AnimatedTouchable>
@@ -207,9 +250,9 @@ export default function AddContributionScreen() {
               <MaterialIcons name="verified-user" size={24} color={colors.primary} />
             </View>
             <View style={styles.complianceTextContainer}>
-              <Text style={styles.complianceTitle}>Audit Trail Protection</Text>
+              <Text style={styles.complianceTitle}>Secure Payment Processing</Text>
               <Text style={styles.complianceText}>
-                All contributions are processed through the DOMICOP ledger and are non-reversible once confirmed. Ensure fund sources comply with internal audit regulations.
+                All contributions are securely processed via Paystack. Payments are encrypted and protected by industry-standard security protocols. A transaction fee may apply.
               </Text>
             </View>
           </Animated.View>

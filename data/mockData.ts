@@ -3,6 +3,7 @@
 export interface User {
   id: string;
   name: string;
+  email: string;
   memberSince: string;
   memberId: string;
 }
@@ -67,6 +68,7 @@ export interface SettingsSection {
 export const mockUser: User = {
   id: 'user-001',
   name: 'Alexander Sterling',
+  email: 'alexander.sterling@domicop.org',
   memberSince: 'Jan 2023',
   memberId: 'DOMI-882941',
 };

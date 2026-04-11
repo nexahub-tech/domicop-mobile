@@ -1,6 +1,11 @@
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { PaystackProvider } from "react-native-paystack-webview";
 import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
+
+// IMPORTANT: Use your Paystack PUBLIC key (pk_test_... or pk_live_...)
+// NEVER use secret keys (sk_...) in client-side code
+const PAYSTACK_PUBLIC_KEY = process.env.EXPO_PUBLIC_PAYSTACK_PUBLIC_KEY || "pk_test_your_public_key_here";
 
 function RootLayoutContent() {
   const { isDarkMode } = useTheme();
@@ -51,7 +56,13 @@ function RootLayoutContent() {
 export default function RootLayout() {
   return (
     <ThemeProvider>
-      <RootLayoutContent />
+      <PaystackProvider
+        publicKey={PAYSTACK_PUBLIC_KEY}
+        currency="NGN"
+        defaultChannels={["card", "bank", "ussd", "qr"]}
+      >
+        <RootLayoutContent />
+      </PaystackProvider>
     </ThemeProvider>
   );
 }
