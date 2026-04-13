@@ -28,6 +28,8 @@ interface InputProps {
   editable?: boolean;
   style?: ViewStyle;
   inputStyle?: TextStyle;
+  multiline?: boolean;
+  numberOfLines?: number;
 }
 
 const createStyles = (colors: typeof lightColors) =>
@@ -115,6 +117,8 @@ export const Input: React.FC<InputProps> = ({
   editable = true,
   style,
   inputStyle,
+  multiline = false,
+  numberOfLines = 1,
 }) => {
   const { colors } = useTheme();
   const styles = createStyles(colors);
@@ -155,6 +159,8 @@ export const Input: React.FC<InputProps> = ({
           editable={editable}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
+          multiline={multiline}
+          numberOfLines={numberOfLines}
           style={[
             styles.input,
             leftIcon && styles.inputWithLeftIcon,

@@ -108,8 +108,6 @@ export default function SignInScreen() {
                 fullWidth
                 icon="arrow.right"
               />
-
-
             </FormCard>
 
             {/* Footer */}
@@ -118,7 +116,7 @@ export default function SignInScreen() {
               <TouchableOpacity onPress={handleJoinArchive}>
                 <Text style={styles.footerText}>
                   Don&apos;t have an account?{" "}
-                  <Text style={styles.footerLink}>Join Archive</Text>
+                  <Text style={styles.footerLink}>Create an account</Text>
                 </Text>
               </TouchableOpacity>
             </View>

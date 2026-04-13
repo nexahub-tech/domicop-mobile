@@ -22,7 +22,7 @@ interface DropdownOption {
 }
 
 interface DropdownSelectProps {
-  label: string;
+  label?: string;
   value: string;
   options: DropdownOption[];
   onSelect: (value: string) => void;
@@ -31,7 +31,7 @@ interface DropdownSelectProps {
 }
 
 export const DropdownSelect: React.FC<DropdownSelectProps> = ({
-  label,
+  label = "Select",
   value,
   options,
   onSelect,
