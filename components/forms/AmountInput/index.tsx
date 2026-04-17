@@ -11,25 +11,46 @@ interface AmountInputProps {
   value: string;
   onChangeText: (text: string) => void;
   error?: string;
+  label?: string;
+  minAmount?: number;
+  maxAmount?: number;
 }
+
+const formatAmountForDisplay = (value: string): string => {
+  if (!value) return "";
+  const numericValue = value.replace(/,/g, "");
+  if (isNaN(Number(numericValue))) return value;
+  return numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+};
 
 export const AmountInput: React.FC<AmountInputProps> = ({
   value,
   onChangeText,
   error,
+  label = "Loan Amount",
+  minAmount = loanConfig.minAmount,
+  maxAmount = loanConfig.maxAmount,
 }) => {
   const { colors } = useTheme();
   const styles = createStyles(colors);
 
+  const handleChangeText = (text: string) => {
+    const cleaned = text.replace(/,/g, "");
+    const numericOnly = cleaned.replace(/[^0-9]/g, "");
+    onChangeText(numericOnly);
+  };
+
+  const displayValue = formatAmountForDisplay(value);
+
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Loan Amount</Text>
+      <Text style={styles.label}>{label}</Text>
       <View style={[styles.inputContainer, error && styles.inputError]}>
         <Text style={styles.currencySymbol}>₦</Text>
         <TextInput
           style={styles.input}
-          value={value}
-          onChangeText={onChangeText}
+          value={displayValue}
+          onChangeText={handleChangeText}
           placeholder="0.00"
           keyboardType="numeric"
           placeholderTextColor={colors.onSurfaceVariant}
@@ -37,10 +58,10 @@ export const AmountInput: React.FC<AmountInputProps> = ({
       </View>
       <View style={styles.limitsContainer}>
         <Text style={styles.limitText}>
-          Min: ₦{formatCurrencyNoSign(loanConfig.minAmount)}
+          Min: ₦{formatCurrencyNoSign(minAmount)}
         </Text>
         <Text style={styles.limitText}>
-          Max: ₦{formatCurrencyNoSign(loanConfig.maxAmount)}
+          Max: ₦{formatCurrencyNoSign(maxAmount)}
         </Text>
       </View>
       {error && <Text style={styles.errorText}>{error}</Text>}

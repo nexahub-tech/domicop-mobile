@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -21,39 +22,51 @@ import Animated, {
 import { theme } from "@/styles/theme";
 import { typography } from "@/constants/typography";
 import { PortfolioCard } from "@/components/savings/PortfolioCard";
-import {
-  mockSavingsTransactions,
-  Transaction,
-  formatCurrency,
-  getTransactionIcon,
-  getTransactionIconColor,
-  getTransactionBgColor,
-} from "@/data/mockData";
+import { formatCurrency } from "@/data/mockData";
 import { useTheme, lightColors } from "@/contexts/ThemeContext";
+import { useContributions } from "@/hooks/useContributions";
+import { useSavingsSummary } from "@/hooks/useSavingsSummary";
+import { Contribution } from "@/lib/types/contributions";
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
+const formatMonth = (monthStr: string): string => {
+  const [year, month] = monthStr.split("-");
+  const date = new Date(parseInt(year), parseInt(month) - 1);
+  return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+};
+
+const getStatusColor = (status: string, colors: typeof lightColors): string => {
+  switch (status) {
+    case "verified":
+      return colors.success;
+    case "pending":
+      return "#F59E0B";
+    case "rejected":
+      return colors.error;
+    default:
+      return colors.onSurfaceVariant;
+  }
+};
+
 interface TransactionItemProps {
-  transaction: Transaction;
+  contribution: Contribution;
   index: number;
   colors: typeof lightColors;
+  onPress: (id: string) => void;
 }
 
 const TransactionItem: React.FC<TransactionItemProps> = ({
-  transaction,
+  contribution,
   index,
   colors,
+  onPress,
 }) => {
-  const router = useRouter();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
   }));
-
-  const handlePress = () => {
-    router.push(`/savings/${transaction.id}`);
-  };
 
   const handlePressIn = () => {
     scale.value = withSpring(0.98, { damping: 15, stiffness: 300 });
@@ -63,39 +76,40 @@ const TransactionItem: React.FC<TransactionItemProps> = ({
     scale.value = withSpring(1, { damping: 15, stiffness: 300 });
   };
 
-  const iconName = getTransactionIcon(transaction.type);
-  const iconColor = getTransactionIconColor(transaction.type);
-  const bgColor = getTransactionBgColor(transaction.type);
-  const amountColor = transaction.amount > 0 ? colors.success : colors.onSurface;
+  const amountColor = getStatusColor(contribution.status, colors);
 
   const dynamicStyles = createTransactionStyles(colors);
 
   return (
     <Animated.View entering={FadeInUp.delay(300 + index * 50).duration(300)}>
       <AnimatedTouchable
-        onPress={handlePress}
+        onPress={() => onPress(contribution.id)}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         style={[dynamicStyles.transactionItem, animatedStyle]}
         activeOpacity={0.7}
       >
         <View style={dynamicStyles.leftSection}>
-          <View style={[dynamicStyles.iconContainer, { backgroundColor: bgColor }]}>
-            <MaterialIcons name={iconName as any} size={20} color={iconColor} />
+          <View
+            style={[dynamicStyles.iconContainer, { backgroundColor: `${amountColor}10` }]}
+          >
+            <MaterialIcons name="savings" size={20} color={amountColor} />
           </View>
           <View style={dynamicStyles.textContainer}>
-            <Text style={dynamicStyles.transactionTitle}>{transaction.title}</Text>
+            <Text style={dynamicStyles.transactionTitle}>
+              {formatMonth(contribution.month)}
+            </Text>
             <Text style={dynamicStyles.transactionDate}>
-              {transaction.date} • {transaction.time}
+              {contribution.month.split("-")[0]} Contribution
             </Text>
           </View>
         </View>
         <View style={dynamicStyles.rightSection}>
           <Text style={[dynamicStyles.transactionAmount, { color: amountColor }]}>
-            {formatCurrency(transaction.amount)}
+            {formatCurrency(contribution.amount)}
           </Text>
-          <Text style={dynamicStyles.transactionStatus}>
-            {transaction.status.toUpperCase()}
+          <Text style={[dynamicStyles.transactionStatus, { color: amountColor }]}>
+            {contribution.status.toUpperCase()}
           </Text>
         </View>
       </AnimatedTouchable>
@@ -103,29 +117,59 @@ const TransactionItem: React.FC<TransactionItemProps> = ({
   );
 };
 
+const VISIBLE_COUNT = 5;
+
 export default function SavingsScreen() {
   const router = useRouter();
-  const [refreshing, setRefreshing] = React.useState(false);
+  const [showAll, setShowAll] = useState(false);
   const { colors, isDarkMode } = useTheme();
 
+  const {
+    contributions,
+    isLoading: isLoadingContributions,
+    isRefreshing: isRefreshingContributions,
+    error: contributionsError,
+    isOffline,
+    refresh: refreshContributions,
+  } = useContributions();
+
+  const {
+    summary,
+    isLoading: isLoadingSummary,
+    isRefreshing: isRefreshingSummary,
+    refresh: refreshSummary,
+  } = useSavingsSummary();
+
+  const isRefreshing = isRefreshingContributions || isRefreshingSummary;
+  const isLoading = isLoadingContributions && contributions.length === 0;
+
   const onRefresh = React.useCallback(() => {
-    setRefreshing(true);
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 2000);
-  }, []);
+    Promise.all([refreshContributions(), refreshSummary()]);
+  }, [refreshContributions, refreshSummary]);
 
   const handleAddContribution = () => {
     router.push("/transactions/add-contribution");
   };
 
+  const handleTransactionPress = (id: string) => {
+    router.push(`/savings/${id}`);
+  };
+
+  const handleRetry = () => {
+    refreshContributions();
+    refreshSummary();
+  };
+
   const dynamicStyles = React.useMemo(() => createStyles(colors), [colors]);
+
+  const displayedContributions = showAll
+    ? contributions
+    : contributions.slice(0, VISIBLE_COUNT);
 
   return (
     <SafeAreaView style={dynamicStyles.container}>
       <StatusBar style={isDarkMode ? "light" : "dark"} />
 
-      {/* Header */}
       <Animated.View entering={FadeIn.duration(300)} style={dynamicStyles.header}>
         <View style={dynamicStyles.headerContent}>
           <View style={dynamicStyles.backButton} />
@@ -136,24 +180,36 @@ export default function SavingsScreen() {
         </View>
       </Animated.View>
 
-      {/* Scrollable Content */}
       <ScrollView
         style={dynamicStyles.scrollView}
         contentContainerStyle={dynamicStyles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
+            refreshing={isRefreshing}
             onRefresh={onRefresh}
             tintColor={colors.primary}
             colors={[colors.primary]}
           />
         }
       >
-        {/* Portfolio Card */}
-        <PortfolioCard />
+        {isOffline && !isLoading && (
+          <Animated.View
+            entering={FadeIn.duration(300)}
+            style={dynamicStyles.offlineBanner}
+          >
+            <MaterialIcons name="cloud-off" size={16} color={colors.onSurfaceVariant} />
+            <Text style={dynamicStyles.offlineText}>Showing cached data — offline</Text>
+          </Animated.View>
+        )}
 
-        {/* Add Contribution Button */}
+        <PortfolioCard
+          totalSavings={summary?.total_savings ?? null}
+          paidThisMonth={summary?.paid_this_month ?? false}
+          currentMonth={summary?.current_month ?? null}
+          isLoading={isLoadingSummary}
+        />
+
         <Animated.View entering={FadeInUp.delay(200).duration(400)}>
           <AnimatedTouchable
             onPress={handleAddContribution}
@@ -165,40 +221,99 @@ export default function SavingsScreen() {
           </AnimatedTouchable>
         </Animated.View>
 
-        {/* Transaction History */}
-        <View style={dynamicStyles.historySection}>
-          <View style={dynamicStyles.historyHeader}>
-            <Animated.Text
-              entering={FadeIn.delay(250)}
-              style={dynamicStyles.historyTitle}
-            >
-              Transaction History
-            </Animated.Text>
-            <TouchableOpacity style={dynamicStyles.filterButton}>
-              <Text style={dynamicStyles.filterText}>Filter</Text>
-              <MaterialIcons name="filter-list" size={16} color={colors.primary} />
+        {isLoading && (
+          <View style={dynamicStyles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={dynamicStyles.loadingText}>Loading contributions...</Text>
+          </View>
+        )}
+
+        {contributionsError && !isLoading && contributions.length === 0 && (
+          <Animated.View
+            entering={FadeIn.duration(300)}
+            style={dynamicStyles.errorContainer}
+          >
+            <MaterialIcons name="error-outline" size={48} color={colors.error} />
+            <Text style={dynamicStyles.errorText}>{contributionsError}</Text>
+            <TouchableOpacity style={dynamicStyles.retryButton} onPress={handleRetry}>
+              <Text style={dynamicStyles.retryButtonText}>Retry</Text>
             </TouchableOpacity>
+          </Animated.View>
+        )}
+
+        {!isLoading && !contributionsError && contributions.length > 0 && (
+          <View style={dynamicStyles.historySection}>
+            <View style={dynamicStyles.historyHeader}>
+              <Animated.Text
+                entering={FadeIn.delay(250)}
+                style={dynamicStyles.historyTitle}
+              >
+                Transaction History
+              </Animated.Text>
+            </View>
+
+            <View style={dynamicStyles.transactionsList}>
+              {displayedContributions.map((contribution, index) => (
+                <TransactionItem
+                  key={contribution.id}
+                  contribution={contribution}
+                  index={index}
+                  colors={colors}
+                  onPress={handleTransactionPress}
+                />
+              ))}
+            </View>
+
+            {contributions.length > VISIBLE_COUNT && !showAll && (
+              <TouchableOpacity
+                style={dynamicStyles.viewAllButton}
+                onPress={() => setShowAll(true)}
+                activeOpacity={0.7}
+              >
+                <Text style={dynamicStyles.viewAllText}>
+                  View All Transactions ({contributions.length})
+                </Text>
+                <MaterialIcons name="expand-more" size={20} color={colors.primary} />
+              </TouchableOpacity>
+            )}
+
+            {showAll && contributions.length > VISIBLE_COUNT && (
+              <TouchableOpacity
+                style={dynamicStyles.viewAllButton}
+                onPress={() => setShowAll(false)}
+                activeOpacity={0.7}
+              >
+                <Text style={dynamicStyles.viewAllText}>Show Less</Text>
+                <MaterialIcons name="expand-less" size={20} color={colors.primary} />
+              </TouchableOpacity>
+            )}
           </View>
+        )}
 
-          {/* Transaction List */}
-          <View style={dynamicStyles.transactionsList}>
-            {mockSavingsTransactions.map((transaction, index) => (
-              <TransactionItem
-                key={transaction.id}
-                transaction={transaction}
-                index={index}
-                colors={colors}
-              />
-            ))}
-          </View>
+        {!isLoading && !contributionsError && contributions.length === 0 && (
+          <Animated.View
+            entering={FadeInUp.delay(300).duration(400)}
+            style={dynamicStyles.emptyContainer}
+          >
+            <View style={dynamicStyles.emptyIconContainer}>
+              <MaterialIcons name="savings" size={64} color={colors.outlineVariant} />
+            </View>
+            <Text style={dynamicStyles.emptyTitle}>No Contributions Yet</Text>
+            <Text style={dynamicStyles.emptyText}>
+              Your savings balance is ₦{formatCurrency(summary?.total_savings ?? 0)}.
+              {"\n"}Start making contributions to build your savings with DOMICOP.
+            </Text>
+            <TouchableOpacity
+              style={dynamicStyles.emptyButton}
+              onPress={handleAddContribution}
+              activeOpacity={0.8}
+            >
+              <MaterialIcons name="add-circle" size={20} color={colors.onPrimary} />
+              <Text style={dynamicStyles.emptyButtonText}>Add First Contribution</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
 
-          {/* View All Button */}
-          <TouchableOpacity style={dynamicStyles.viewAllButton}>
-            <Text style={dynamicStyles.viewAllText}>View All Transactions</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Bottom padding for tab bar */}
         <SafeAreaView edges={["bottom"]} style={dynamicStyles.bottomPadding} />
       </ScrollView>
     </SafeAreaView>
@@ -246,6 +361,23 @@ const createStyles = (colors: typeof lightColors) =>
     scrollContent: {
       paddingTop: theme.spacing.lg,
     },
+    offlineBanner: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: theme.spacing.sm,
+      backgroundColor: `${colors.primary}10`,
+      marginHorizontal: theme.spacing.lg,
+      marginBottom: theme.spacing.base,
+      paddingVertical: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.base,
+      borderRadius: theme.borderRadius.lg,
+    },
+    offlineText: {
+      fontFamily: typography.fontFamily.body,
+      fontSize: typography.size.xs,
+      color: colors.onSurfaceVariant,
+    },
     addButton: {
       backgroundColor: colors.primary,
       borderRadius: theme.borderRadius.xl,
@@ -272,6 +404,43 @@ const createStyles = (colors: typeof lightColors) =>
       fontWeight: typography.fontWeight.bold as any,
       color: colors.onPrimary,
     },
+    loadingContainer: {
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: theme.spacing["3xl"],
+    },
+    loadingText: {
+      fontFamily: typography.fontFamily.body,
+      fontSize: typography.size.sm,
+      color: colors.onSurfaceVariant,
+      marginTop: theme.spacing.base,
+    },
+    errorContainer: {
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: theme.spacing["3xl"],
+      gap: theme.spacing.base,
+    },
+    errorText: {
+      fontFamily: typography.fontFamily.body,
+      fontSize: typography.size.base,
+      color: colors.error,
+      textAlign: "center",
+      marginTop: theme.spacing.base,
+    },
+    retryButton: {
+      backgroundColor: colors.primary,
+      paddingVertical: theme.spacing.base,
+      paddingHorizontal: theme.spacing.xl,
+      borderRadius: theme.borderRadius.lg,
+      marginTop: theme.spacing.base,
+    },
+    retryButtonText: {
+      fontFamily: typography.fontFamily.label,
+      fontSize: typography.size.base,
+      fontWeight: typography.fontWeight.bold as any,
+      color: colors.onPrimary,
+    },
     historySection: {
       paddingHorizontal: theme.spacing.lg,
       marginBottom: theme.spacing.lg,
@@ -288,17 +457,6 @@ const createStyles = (colors: typeof lightColors) =>
       fontWeight: typography.fontWeight.bold as any,
       color: colors.onSurface,
     },
-    filterButton: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 4,
-    },
-    filterText: {
-      fontFamily: typography.fontFamily.label,
-      fontSize: typography.size.sm,
-      fontWeight: typography.fontWeight.semibold as any,
-      color: colors.primary,
-    },
     transactionsList: {
       backgroundColor: colors.surface,
       borderRadius: theme.borderRadius["2xl"],
@@ -313,14 +471,63 @@ const createStyles = (colors: typeof lightColors) =>
       elevation: 2,
     },
     viewAllButton: {
-      paddingVertical: theme.spacing.lg,
+      flexDirection: "row",
       alignItems: "center",
+      justifyContent: "center",
+      gap: theme.spacing.xs,
+      paddingVertical: theme.spacing.lg,
     },
     viewAllText: {
       fontFamily: typography.fontFamily.body,
       fontSize: typography.size.sm,
       fontWeight: typography.fontWeight.medium as any,
+      color: colors.primary,
+    },
+    emptyContainer: {
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: theme.spacing["3xl"],
+      paddingHorizontal: theme.spacing.lg,
+    },
+    emptyIconContainer: {
+      width: 100,
+      height: 100,
+      borderRadius: 50,
+      backgroundColor: `${colors.primary}08`,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: theme.spacing.lg,
+    },
+    emptyTitle: {
+      fontFamily: typography.fontFamily.headline,
+      fontSize: typography.size.xl,
+      fontWeight: typography.fontWeight.bold as any,
+      color: colors.onSurface,
+      marginBottom: theme.spacing.sm,
+    },
+    emptyText: {
+      fontFamily: typography.fontFamily.body,
+      fontSize: typography.size.base,
       color: colors.onSurfaceVariant,
+      textAlign: "center",
+      lineHeight: 22,
+      marginBottom: theme.spacing.lg,
+    },
+    emptyButton: {
+      backgroundColor: colors.primary,
+      borderRadius: theme.borderRadius.xl,
+      paddingVertical: theme.spacing.base,
+      paddingHorizontal: theme.spacing.xl,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: theme.spacing.sm,
+    },
+    emptyButtonText: {
+      fontFamily: typography.fontFamily.headline,
+      fontSize: typography.size.base,
+      fontWeight: typography.fontWeight.bold as any,
+      color: colors.onPrimary,
     },
     bottomPadding: {
       height: 100,
@@ -378,6 +585,5 @@ const createTransactionStyles = (colors: typeof lightColors) =>
       fontFamily: typography.fontFamily.label,
       fontSize: typography.size.xs - 2,
       fontWeight: typography.fontWeight.medium as any,
-      color: colors.onSurfaceVariant,
     },
   });

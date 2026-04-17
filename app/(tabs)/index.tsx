@@ -6,20 +6,36 @@ import { theme } from '@/styles/theme';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { StatusCards } from '@/components/dashboard/StatusCards';
 import { QuickActions } from '@/components/dashboard/QuickActions';
-import { TransactionList } from '@/components/dashboard/TransactionList';
+import { TransactionList, RecentTransaction } from '@/components/dashboard/TransactionList';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useSavingsSummary } from '@/hooks/useSavingsSummary';
 
 export default function DashboardScreen() {
-  const [refreshing, setRefreshing] = React.useState(false);
   const { colors, isDarkMode } = useTheme();
+  const {
+    summary,
+    isLoading: isSummaryLoading,
+    isRefreshing: isSummaryRefreshing,
+    isOffline,
+    error: summaryError,
+    refresh: refreshSummary,
+  } = useSavingsSummary();
+
+  const recentTransactions: RecentTransaction[] = (summary?.recent_transactions || []).map((t) => ({
+    id: t.id,
+    type: t.type,
+    category: t.category,
+    title: t.title || t.type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+    amount: t.amount,
+    date: t.date,
+    status: t.status,
+  }));
+
+  const isRefreshing = isSummaryRefreshing;
 
   const onRefresh = React.useCallback(() => {
-    setRefreshing(true);
-    // Simulate data refresh
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 2000);
-  }, []);
+    refreshSummary();
+  }, [refreshSummary]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -35,7 +51,7 @@ export default function DashboardScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
+            refreshing={isRefreshing}
             onRefresh={onRefresh}
             tintColor={colors.primary}
             colors={[colors.primary]}
@@ -49,7 +65,13 @@ export default function DashboardScreen() {
         <QuickActions />
 
         {/* Recent Transactions */}
-        <TransactionList />
+        <TransactionList
+          transactions={recentTransactions}
+          isLoading={isSummaryLoading}
+          isOffline={isOffline}
+          error={summaryError}
+          onRetry={refreshSummary}
+        />
         
         {/* Bottom padding for tab bar */}
         <SafeAreaView edges={['bottom']} style={styles.bottomPadding} />
@@ -69,6 +91,6 @@ const styles = StyleSheet.create({
     paddingTop: theme.spacing.base,
   },
   bottomPadding: {
-    height: 100, // Extra space for tab bar
+    height: 100,
   },
 });

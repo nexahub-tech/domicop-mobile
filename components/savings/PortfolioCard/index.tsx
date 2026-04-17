@@ -1,13 +1,19 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { MaterialIcons } from "@expo/vector-icons";
 import Animated, { FadeInUp } from "react-native-reanimated";
 import { useTheme, lightColors } from "@/contexts/ThemeContext";
 import { theme } from "@/styles/theme";
 import { typography } from "@/constants/typography";
-import { mockSavingsData, formatCurrencyNoSign } from "@/data/mockData";
+import { formatCurrencyNoSign } from "@/data/mockData";
 
 const AnimatedView = Animated.createAnimatedComponent(View);
+
+interface PortfolioCardProps {
+  totalSavings: number | null;
+  paidThisMonth: boolean;
+  currentMonth: string | null;
+  isLoading?: boolean;
+}
 
 const createStyles = (colors: typeof lightColors) =>
   StyleSheet.create({
@@ -15,58 +21,10 @@ const createStyles = (colors: typeof lightColors) =>
       paddingHorizontal: theme.spacing.lg,
       marginBottom: theme.spacing.lg,
     },
-    card: {
-      backgroundColor: colors.primary,
-      borderRadius: theme.borderRadius.xl,
-      padding: theme.spacing["2xl"],
-      overflow: "hidden",
-      position: "relative",
-    },
-    header: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: theme.spacing.sm,
-      marginBottom: theme.spacing.lg,
-    },
-    iconContainer: {
-      width: 40,
-      height: 40,
-      borderRadius: 10,
-      backgroundColor: `${colors.primaryFixed}20`,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    cooperativeText: {
-      fontFamily: typography.fontFamily.label,
-      fontSize: typography.size.xs,
-      fontWeight: typography.fontWeight.semibold as any,
-      color: colors.primaryFixed,
-      textTransform: "uppercase",
-      letterSpacing: 1,
-    },
-    title: {
-      fontFamily: typography.fontFamily.headline,
-      fontSize: typography.size["2xl"],
-      fontWeight: typography.fontWeight.extrabold as any,
-      color: colors.onPrimary,
-      marginBottom: 4,
-    },
-    subtitle: {
-      fontFamily: typography.fontFamily.body,
-      fontSize: typography.size.sm,
-      color: `${colors.onPrimary}90`,
-    },
-    watermarkContainer: {
-      position: "absolute",
-      bottom: -20,
-      right: -20,
-      zIndex: 0,
-    },
     balanceCard: {
       backgroundColor: colors.primary,
       borderRadius: theme.borderRadius.xl,
       padding: theme.spacing["2xl"],
-      marginTop: theme.spacing.base,
       overflow: "hidden",
       position: "relative",
       shadowColor: colors.primary,
@@ -147,106 +105,78 @@ const createStyles = (colors: typeof lightColors) =>
       fontWeight: typography.fontWeight.semibold as any,
       color: colors.onPrimary,
     },
-    dividendsSection: {
+    monthSection: {
       alignItems: "flex-end",
     },
-    dividendsValue: {
+    monthValue: {
       fontFamily: typography.fontFamily.body,
       fontSize: typography.size.base,
       fontWeight: typography.fontWeight.semibold as any,
       color: colors.onPrimary,
     },
-    progressBarContainer: {
-      height: 6,
-      backgroundColor: "rgba(255, 255, 255, 0.2)",
-      borderRadius: 3,
-      overflow: "hidden",
-      marginTop: theme.spacing.sm,
-    },
-    progressBarBackground: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: "rgba(255, 255, 255, 0.1)",
-    },
-    progressBarFill: {
-      height: "100%",
-      backgroundColor: colors.onPrimary,
-      borderRadius: 3,
+    skeletonAmount: {
+      fontFamily: typography.fontFamily.headline,
+      fontSize: typography.size["3xl"],
+      fontWeight: typography.fontWeight.extrabold as any,
+      color: `${colors.onPrimary}60`,
     },
   });
 
-export const PortfolioCard: React.FC = () => {
+export const PortfolioCard: React.FC<PortfolioCardProps> = ({
+  totalSavings,
+  paidThisMonth,
+  currentMonth,
+  isLoading = false,
+}) => {
   const { colors } = useTheme();
   const styles = createStyles(colors);
-  const progress = (mockSavingsData.totalSaved / mockSavingsData.monthlyGoal) * 100;
+
+  const displayTotal = totalSavings ?? 0;
+  const displayMonth = currentMonth
+    ? new Date(currentMonth + "-01").toLocaleDateString("en-US", {
+        month: "long",
+        year: "numeric",
+      })
+    : new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
   return (
     <AnimatedView entering={FadeInUp.duration(400)} style={styles.container}>
-      <View style={styles.card}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.iconContainer}>
-            <MaterialIcons name="account-balance" size={24} color={colors.primary} />
-          </View>
-          <Text style={styles.cooperativeText}>DOMICOP Cooperative</Text>
-        </View>
-
-        {/* Title */}
-        <Text style={styles.title}>Savings Portfolio</Text>
-        <Text style={styles.subtitle}>Secure Member Portal</Text>
-
-        {/* Watermark */}
-        <View style={styles.watermarkContainer}>
-          <MaterialIcons
-            name="account-balance-wallet"
-            size={140}
-            color="rgba(255, 255, 255, 0.1)"
-          />
-        </View>
-      </View>
-
-      {/* Balance Card */}
       <AnimatedView
         entering={FadeInUp.delay(100).duration(400)}
         style={styles.balanceCard}
       >
-        {/* Abstract Pattern Overlay */}
         <View style={styles.patternOverlay} />
 
         <View style={styles.balanceContent}>
           <Text style={styles.balanceLabel}>Total Savings Portfolio</Text>
 
           <View style={styles.balanceRow}>
-            <Text style={styles.balanceAmount}>
-              ₦{formatCurrencyNoSign(mockSavingsData.totalSaved)}
-            </Text>
+            {isLoading && totalSavings === null ? (
+              <Text style={styles.skeletonAmount}>---</Text>
+            ) : (
+              <Text style={styles.balanceAmount}>
+                ₦{formatCurrencyNoSign(displayTotal)}
+              </Text>
+            )}
             <View style={styles.growthBadge}>
-              <Text style={styles.growthText}>+{mockSavingsData.growthPercentage}%</Text>
+              <Text style={styles.growthText}>
+                {paidThisMonth ? "PAID THIS MONTH" : "NOT PAID"}
+              </Text>
             </View>
           </View>
 
-          {/* Progress Section */}
           <View style={styles.progressContainer}>
             <View style={styles.progressInfo}>
               <View>
-                <Text style={styles.progressLabel}>Monthly Goal</Text>
-                <Text style={styles.progressValue}>
-                  ₦{formatCurrencyNoSign(mockSavingsData.monthlyGoal)}
+                <Text style={styles.progressLabel}>Current Month</Text>
+                <Text style={styles.progressValue}>{displayMonth}</Text>
+              </View>
+              <View style={styles.monthSection}>
+                <Text style={styles.progressLabel}>Status</Text>
+                <Text style={styles.monthValue}>
+                  {paidThisMonth ? "Contribution Made" : "No Contribution Yet"}
                 </Text>
               </View>
-              <View style={styles.dividendsSection}>
-                <Text style={styles.progressLabel}>Dividends Earned</Text>
-                <Text style={styles.dividendsValue}>
-                  ₦{formatCurrencyNoSign(mockSavingsData.dividendsEarned)}
-                </Text>
-              </View>
-            </View>
-
-            {/* Progress Bar */}
-            <View style={styles.progressBarContainer}>
-              <View style={styles.progressBarBackground} />
-              <View
-                style={[styles.progressBarFill, { width: `${Math.min(progress, 100)}%` }]}
-              />
             </View>
           </View>
         </View>
