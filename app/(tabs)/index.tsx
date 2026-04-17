@@ -9,6 +9,13 @@ import { QuickActions } from '@/components/dashboard/QuickActions';
 import { TransactionList, RecentTransaction } from '@/components/dashboard/TransactionList';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSavingsSummary } from '@/hooks/useSavingsSummary';
+import { useContributions } from '@/hooks/useContributions';
+
+const formatMonth = (monthStr: string): string => {
+  const [year, month] = monthStr.split('-');
+  const date = new Date(parseInt(year), parseInt(month) - 1);
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
 
 export default function DashboardScreen() {
   const { colors, isDarkMode } = useTheme();
@@ -21,21 +28,31 @@ export default function DashboardScreen() {
     refresh: refreshSummary,
   } = useSavingsSummary();
 
-  const recentTransactions: RecentTransaction[] = (summary?.recent_transactions || []).map((t) => ({
-    id: t.id,
-    type: t.type,
-    category: t.category,
-    title: t.title || t.type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-    amount: t.amount,
-    date: t.date,
-    status: t.status,
+  const {
+    contributions,
+    isLoading: isContributionsLoading,
+    isRefreshing: isContributionsRefreshing,
+    error: contributionsError,
+    refresh: refreshContributions,
+  } = useContributions();
+
+  const recentTransactions: RecentTransaction[] = contributions.slice(0, 5).map((c) => ({
+    id: c.id,
+    type: 'contribution',
+    category: 'savings' as const,
+    title: formatMonth(c.month),
+    amount: c.amount,
+    date: c.created_at,
+    status: c.status,
   }));
 
-  const isRefreshing = isSummaryRefreshing;
+  const isLoading = isSummaryLoading && isContributionsLoading;
+  const isRefreshing = isSummaryRefreshing || isContributionsRefreshing;
+  const error = summaryError || contributionsError;
 
   const onRefresh = React.useCallback(() => {
-    refreshSummary();
-  }, [refreshSummary]);
+    Promise.all([refreshSummary(), refreshContributions()]);
+  }, [refreshSummary, refreshContributions]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -67,10 +84,10 @@ export default function DashboardScreen() {
         {/* Recent Transactions */}
         <TransactionList
           transactions={recentTransactions}
-          isLoading={isSummaryLoading}
+          isLoading={isLoading}
           isOffline={isOffline}
-          error={summaryError}
-          onRetry={refreshSummary}
+          error={error}
+          onRetry={onRefresh}
         />
         
         {/* Bottom padding for tab bar */}

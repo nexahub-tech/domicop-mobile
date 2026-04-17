@@ -19,7 +19,7 @@ import type { lightColors } from "@/contexts/ThemeContext";
 import { theme } from "@/styles/theme";
 import { typography } from "@/constants/typography";
 import { TransactionDetailCard } from "@/components/savings/TransactionDetailCard";
-import { formatCurrency, formatCurrencyNoSign } from "@/data/mockData";
+import { formatCurrency } from "@/data/mockData";
 import { contributionsApi } from "@/lib/api/contributions.api";
 import { Contribution } from "@/lib/types/contributions";
 import { downloadReceipt, shareReceipt } from "@/utils/receiptGenerator";
