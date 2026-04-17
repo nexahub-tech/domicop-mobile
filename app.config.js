@@ -56,6 +56,7 @@ module.exports = {
         projectId: "005a3826-e772-4bfa-8f5c-6be57a2232ca",
       },
       apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL,
+      paystackPublicKey: process.env.EXPO_PUBLIC_PAYSTACK_PUBLIC_KEY,
     },
     owner: "nexahub-technologies",
   },
