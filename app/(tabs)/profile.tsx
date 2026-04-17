@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { ScrollView, StyleSheet, RefreshControl } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -7,23 +7,40 @@ import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { SettingsSection } from "@/components/profile/SettingsSection";
 import { ConfirmationModal } from "@/components/modals/ConfirmationModal";
 import { useTheme } from "@/contexts/ThemeContext";
+import { signUp } from "@/lib/api/sign-up.api";
+import type { Profile } from "@/lib/types/sign-up";
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const [refreshing, setRefreshing] = React.useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const { colors, isDarkMode } = useTheme();
 
   // Modal states
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  const onRefresh = React.useCallback(() => {
-    setRefreshing(true);
-    // Simulate data refresh
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 2000);
+  const loadProfile = useCallback(async () => {
+    try {
+      const data = await signUp.getProfile();
+      setProfile(data);
+    } catch (error) {
+      console.error("Failed to load profile:", error);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadProfile();
+    setRefreshing(false);
+  }, [loadProfile]);
 
   const handleLogout = () => {
     setShowLogoutModal(true);
@@ -33,15 +50,18 @@ export default function ProfileScreen() {
     setShowDeleteModal(true);
   };
 
-  const confirmLogout = () => {
+  const confirmLogout = async () => {
     setShowLogoutModal(false);
-    // Navigate to sign in
+    try {
+      await signUp.logout();
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
     router.replace("/sign-in");
   };
 
   const confirmDeleteAccount = () => {
     setShowDeleteModal(false);
-    // Show success message and navigate to sign in
     setTimeout(() => {
       router.replace("/sign-in");
     }, 500);
@@ -52,7 +72,7 @@ export default function ProfileScreen() {
       <StatusBar style={isDarkMode ? "light" : "dark"} />
 
       {/* Fixed Header */}
-      <ProfileHeader />
+      <ProfileHeader profile={profile} isLoading={isLoading} />
 
       {/* Scrollable Content */}
       <ScrollView

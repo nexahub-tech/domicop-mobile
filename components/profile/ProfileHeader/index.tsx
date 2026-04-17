@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import Animated, {
   FadeIn,
@@ -11,7 +11,12 @@ import Animated, {
 import { useTheme, lightColors } from "@/contexts/ThemeContext";
 import { theme } from "@/styles/theme";
 import { typography } from "@/constants/typography";
-import { mockUser, getInitials } from "@/data/mockData";
+import type { Profile } from "@/lib/types/sign-up";
+
+interface ProfileHeaderProps {
+  profile: Profile | null;
+  isLoading?: boolean;
+}
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -131,13 +136,30 @@ const createStyles = (colors: typeof lightColors) =>
       fontSize: typography.size.sm,
       color: colors.onSurfaceVariant,
     },
+    loadingContainer: {
+      paddingVertical: theme.spacing["3xl"],
+      alignItems: "center",
+    },
   });
 
-export const ProfileHeader: React.FC = () => {
+export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, isLoading }) => {
   const { colors } = useTheme();
   const styles = createStyles(colors);
-  const initials = getInitials(mockUser.name);
   const scale = useSharedValue(1);
+
+  const getInitials = (name: string): string => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  };
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -155,6 +177,30 @@ export const ProfileHeader: React.FC = () => {
   const handlePressOut = () => {
     scale.value = withSpring(1, { damping: 15, stiffness: 300 });
   };
+
+  if (isLoading || !profile) {
+    return (
+      <Animated.View entering={FadeIn.duration(300)} style={styles.container}>
+        {/* Top Navigation */}
+        <View style={styles.navBar}>
+          <View style={styles.navContent}>
+            <View style={styles.backButton} />
+            <Text style={styles.navTitle}>Profile</Text>
+            <View style={styles.backButton} />
+          </View>
+        </View>
+
+        {/* Loading State */}
+        <View style={styles.profileContainer}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        </View>
+      </Animated.View>
+    );
+  }
+
+  const initials = getInitials(profile.full_name);
 
   return (
     <Animated.View entering={FadeIn.duration(300)} style={styles.container}>
@@ -194,13 +240,15 @@ export const ProfileHeader: React.FC = () => {
           entering={FadeInUp.delay(150).duration(400)}
           style={styles.infoContainer}
         >
-          <Text style={styles.name}>{mockUser.name}</Text>
+          <Text style={styles.name}>{profile.full_name}</Text>
 
           <View style={styles.badgeContainer}>
             <View style={styles.memberBadge}>
-              <Text style={styles.memberBadgeText}>Member ID: {mockUser.memberId}</Text>
+              <Text style={styles.memberBadgeText}>
+                Member ID: {profile.member_no || "Pending"}
+              </Text>
             </View>
-            <Text style={styles.memberSince}>Member since {mockUser.memberSince}</Text>
+            <Text style={styles.memberSince}>Member since {formatDate(profile.created_at)}</Text>
           </View>
         </Animated.View>
       </View>
