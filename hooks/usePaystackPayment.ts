@@ -1,28 +1,53 @@
 import { usePaystack } from 'react-native-paystack-webview';
-import { mockUser } from '@/data/mockData';
+import { signUp } from '@/lib/api/sign-up.api';
+import { session } from '@/lib/session';
+import { usePaystackVerifyTransaction } from './usePaystackVerifyTransaction';
+import { PaystackVerificationResponse } from '@/types';
 
 export interface PaymentParams {
   amount: number;
   email?: string;
   reference?: string;
   metadata?: Record<string, any>;
-  onSuccess?: (response: any) => void;
+  onSuccess?: (
+    response: PaystackResponse,
+    verification: PaystackVerificationResponse | null
+  ) => void;
   onCancel?: () => void;
   onError?: (error: any) => void;
 }
 
+export interface PaystackResponse {
+  reference: string;
+  status: string;
+  trans: string;
+  transaction: string;
+  message: string | undefined;
+}
+
 export const usePaystackPayment = () => {
   const { popup } = usePaystack();
+  const { verifyTransaction } = usePaystackVerifyTransaction();
 
   const generateReference = (type: 'contribution' | 'loan' = 'contribution') => {
     const timestamp = Date.now();
     const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    return `DOMI-${type.toUpperCase()}-${mockUser.memberId}-${timestamp}-${random}`;
+    return `DOMI-${type.toUpperCase()}-${timestamp}-${random}`;
   };
 
-  const initiateContributionPayment = (params: PaymentParams) => {
+  const initiateContributionPayment = async (params: PaymentParams & { contributionId?: string }) => {
+    let userProfile;
+    try {
+      userProfile = await signUp.getProfile();
+    } catch (error) {
+      console.error('Failed to fetch user profile:', error);
+      params.onError?.(new Error('Failed to fetch user information'));
+      return;
+    }
+
     const reference = params.reference || generateReference('contribution');
-    const email = params.email || mockUser.email;
+    const storedEmail = await session.getEmail();
+    const email = params.email || storedEmail || '';
 
     popup.checkout({
       email,
@@ -30,16 +55,19 @@ export const usePaystackPayment = () => {
       reference,
       metadata: {
         ...params.metadata,
+        member_id: userProfile.member_no,
+        member_name: userProfile.full_name,
+        contribution_id: params.contributionId,
         custom_fields: [
           {
             display_name: 'Member Name',
             variable_name: 'member_name',
-            value: mockUser.name,
+            value: userProfile.full_name,
           },
           {
             display_name: 'Member ID',
             variable_name: 'member_id',
-            value: mockUser.memberId,
+            value: userProfile.member_no || 'N/A',
           },
           {
             display_name: 'Transaction Type',
@@ -49,9 +77,13 @@ export const usePaystackPayment = () => {
           ...(params.metadata?.custom_fields || []),
         ],
       },
-      onSuccess: (response) => {
+      onSuccess: async (response: any) => {
         console.log('Payment Success:', response);
-        params.onSuccess?.(response);
+
+        const verification = await verifyTransaction(response.reference);
+        console.log('Payment verified with Paystack:', verification);
+
+        params.onSuccess?.(response, verification);
       },
       onCancel: () => {
         console.log('Payment Cancelled');
@@ -64,9 +96,19 @@ export const usePaystackPayment = () => {
     });
   };
 
-  const initiateLoanPayment = (params: PaymentParams & { loanId?: string }) => {
+  const initiateLoanPayment = async (params: PaymentParams & { loanId?: string }) => {
+    let userProfile;
+    try {
+      userProfile = await signUp.getProfile();
+    } catch (error) {
+      console.error('Failed to fetch user profile:', error);
+      params.onError?.(new Error('Failed to fetch user information'));
+      return;
+    }
+
     const reference = params.reference || generateReference('loan');
-    const email = params.email || mockUser.email;
+    const storedEmail = await session.getEmail();
+    const email = params.email || storedEmail || '';
 
     popup.checkout({
       email,
@@ -74,16 +116,19 @@ export const usePaystackPayment = () => {
       reference,
       metadata: {
         ...params.metadata,
+        member_id: userProfile.member_no,
+        member_name: userProfile.full_name,
+        loan_id: params.loanId,
         custom_fields: [
           {
             display_name: 'Member Name',
             variable_name: 'member_name',
-            value: mockUser.name,
+            value: userProfile.full_name,
           },
           {
             display_name: 'Member ID',
             variable_name: 'member_id',
-            value: mockUser.memberId,
+            value: userProfile.member_no || 'N/A',
           },
           {
             display_name: 'Transaction Type',
@@ -98,9 +143,13 @@ export const usePaystackPayment = () => {
           ...(params.metadata?.custom_fields || []),
         ],
       },
-      onSuccess: (response) => {
+      onSuccess: async (response: any) => {
         console.log('Payment Success:', response);
-        params.onSuccess?.(response);
+
+        const verification = await verifyTransaction(response.reference);
+        console.log('Payment verified with Paystack:', verification);
+
+        params.onSuccess?.(response, verification);
       },
       onCancel: () => {
         console.log('Payment Cancelled');

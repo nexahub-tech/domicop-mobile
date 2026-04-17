@@ -1,5 +1,12 @@
-import React from "react";
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  RefreshControl,
+} from "react-native";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -8,24 +15,81 @@ import Animated, { FadeIn, FadeInUp } from "react-native-reanimated";
 import { useTheme, lightColors } from "@/contexts/ThemeContext";
 import { theme } from "@/styles/theme";
 import { typography } from "@/constants/typography";
-import { mockSavingsTransactions, formatCurrency } from "@/data/mockData";
+import { formatCurrency } from "@/data/mockData";
+import { contributionsApi } from "@/lib/api/contributions.api";
+import { Contribution } from "@/lib/types/contributions";
 
 export default function ContributionDetailsScreen() {
   const router = useRouter();
   const { colors, isDarkMode } = useTheme();
   const styles = createStyles(colors);
 
-  // Calculate totals
-  const contributions = mockSavingsTransactions.filter((t) => t.amount > 0);
-  const totalContributions = contributions.reduce((sum, t) => sum + t.amount, 0);
+  const [contributions, setContributions] = useState<Contribution[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchContributions = useCallback(async (isRefresh = false) => {
+    try {
+      if (isRefresh) {
+        setIsRefreshing(true);
+      } else {
+        setIsLoading(true);
+      }
+      setError(null);
+
+      const currentYear = new Date().getFullYear();
+      const response = await contributionsApi.getMyContributions({ year: currentYear });
+      setContributions(response.data || []);
+    } catch (err: any) {
+      console.error("Failed to fetch contributions:", err);
+      setError(err?.message || "Failed to load contributions");
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchContributions();
+  }, [fetchContributions]);
+
+  const totalContributions = contributions.reduce((sum, c) => sum + c.amount, 0);
   const totalTransactions = contributions.length;
+  const verifiedContributions = contributions.filter(
+    (c) => c.status === "verified",
+  ).length;
+  const pendingContributions = contributions.filter((c) => c.status === "pending").length;
+
+  const handleRefresh = () => {
+    fetchContributions(true);
+  };
 
   const handleAddContribution = () => {
     router.push("/transactions/add-contribution");
   };
 
-  const handleTransactionPress = (transactionId: string) => {
-    router.push(`/transactions/contribution-details-info?id=${transactionId}`);
+  const handleTransactionPress = (contributionId: string) => {
+    router.push(`/transactions/contribution-details-info?id=${contributionId}`);
+  };
+
+  const formatMonth = (monthStr: string) => {
+    const [year, month] = monthStr.split("-");
+    const date = new Date(parseInt(year), parseInt(month) - 1);
+    return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "verified":
+        return colors.success;
+      case "pending":
+        return "#F59E0B";
+      case "rejected":
+        return colors.error;
+      default:
+        return colors.onSurfaceVariant;
+    }
   };
 
   return (
@@ -47,51 +111,89 @@ export default function ContributionDetailsScreen() {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
       >
+        {/* Loading State */}
+        {isLoading && contributions.length === 0 && (
+          <Animated.View entering={FadeIn.duration(300)} style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>Loading contributions...</Text>
+          </Animated.View>
+        )}
+
+        {/* Error State */}
+        {error && contributions.length === 0 && (
+          <Animated.View entering={FadeIn.duration(300)} style={styles.errorContainer}>
+            <MaterialIcons name="error-outline" size={48} color={colors.error} />
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={() => fetchContributions()}
+            >
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
         {/* Overview Card */}
-        <Animated.View
-          entering={FadeInUp.delay(100).duration(400)}
-          style={styles.overviewCard}
-        >
-          {/* Watermark */}
-          <View style={styles.watermarkContainer}>
-            <MaterialIcons
-              name="account-balance"
-              size={140}
-              color={`${colors.onPrimary}10`}
-            />
-          </View>
-
-          {/* Icon */}
-          <View style={styles.iconContainer}>
-            <MaterialIcons name="savings" size={28} color={colors.onPrimary} />
-          </View>
-
-          {/* Title */}
-          <Text style={styles.overviewTitle}>Total Contributions</Text>
-
-          {/* Amount */}
-          <Text style={styles.overviewAmount}>₦{formatCurrency(totalContributions)}</Text>
-
-          {/* Status */}
-          <View style={styles.statusBadge}>
-            <MaterialIcons name="check-circle" size={14} color={colors.success} />
-            <Text style={styles.statusText}>ACTIVE</Text>
-          </View>
-
-          {/* Stats Grid */}
-          <View style={styles.statsGrid}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{totalTransactions}</Text>
-              <Text style={styles.statLabel}>Transactions</Text>
+        {!isLoading && (
+          <Animated.View
+            entering={FadeInUp.delay(100).duration(400)}
+            style={styles.overviewCard}
+          >
+            {/* Watermark */}
+            <View style={styles.watermarkContainer}>
+              <MaterialIcons
+                name="account-balance"
+                size={140}
+                color={`${colors.onPrimary}10`}
+              />
             </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>Monthly</Text>
-              <Text style={styles.statLabel}>Contribution</Text>
+
+            {/* Icon */}
+            <View style={styles.iconContainer}>
+              <MaterialIcons name="savings" size={28} color={colors.onPrimary} />
             </View>
-          </View>
-        </Animated.View>
+
+            {/* Title */}
+            <Text style={styles.overviewTitle}>Total Contributions</Text>
+
+            {/* Amount */}
+            <Text style={styles.overviewAmount}>
+              ₦{formatCurrency(totalContributions)}
+            </Text>
+
+            {/* Status */}
+            <View style={styles.statusBadge}>
+              <MaterialIcons name="check-circle" size={14} color={colors.success} />
+              <Text style={styles.statusText}>ACTIVE</Text>
+            </View>
+
+            {/* Stats Grid */}
+            <View style={styles.statsGrid}>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{totalTransactions}</Text>
+                <Text style={styles.statLabel}>Total</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{verifiedContributions}</Text>
+                <Text style={styles.statLabel}>Verified</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{pendingContributions}</Text>
+                <Text style={styles.statLabel}>Pending</Text>
+              </View>
+            </View>
+          </Animated.View>
+        )}
 
         {/* Add Contribution Button */}
         <Animated.View entering={FadeInUp.delay(200).duration(400)}>
@@ -106,51 +208,89 @@ export default function ContributionDetailsScreen() {
         </Animated.View>
 
         {/* Transaction History */}
-        <Animated.View
-          entering={FadeInUp.delay(300).duration(400)}
-          style={styles.historySection}
-        >
-          <View style={styles.historyHeader}>
-            <Text style={styles.historyTitle}>Recent Transactions</Text>
-            <TouchableOpacity>
-              <Text style={styles.viewAllText}>View All</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.transactionsList}>
-            {contributions.slice(0, 5).map((transaction, index) => (
-              <TouchableOpacity
-                key={transaction.id}
-                style={styles.transactionItem}
-                onPress={() => handleTransactionPress(transaction.id)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.transactionLeft}>
-                  <View
-                    style={[
-                      styles.transactionIcon,
-                      { backgroundColor: `${colors.success}10` },
-                    ]}
-                  >
-                    <MaterialIcons name="savings" size={20} color={colors.success} />
-                  </View>
-                  <View style={styles.transactionInfo}>
-                    <Text style={styles.transactionTitle}>{transaction.title}</Text>
-                    <Text style={styles.transactionDate}>{transaction.date}</Text>
-                  </View>
-                </View>
-                <View style={styles.transactionRight}>
-                  <Text style={[styles.transactionAmount, { color: colors.success }]}>
-                    +₦{formatCurrency(transaction.amount)}
-                  </Text>
-                  <Text style={styles.transactionStatus}>
-                    {transaction.status.toUpperCase()}
-                  </Text>
-                </View>
+        {contributions.length > 0 && (
+          <Animated.View
+            entering={FadeInUp.delay(300).duration(400)}
+            style={styles.historySection}
+          >
+            <View style={styles.historyHeader}>
+              <Text style={styles.historyTitle}>Recent Transactions</Text>
+              <TouchableOpacity>
+                <Text style={styles.viewAllText}>View All</Text>
               </TouchableOpacity>
-            ))}
-          </View>
-        </Animated.View>
+            </View>
+
+            <View style={styles.transactionsList}>
+              {contributions.slice(0, 10).map((contribution) => (
+                <TouchableOpacity
+                  key={contribution.id}
+                  style={styles.transactionItem}
+                  onPress={() => handleTransactionPress(contribution.id)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.transactionLeft}>
+                    <View
+                      style={[
+                        styles.transactionIcon,
+                        { backgroundColor: `${getStatusColor(contribution.status)}10` },
+                      ]}
+                    >
+                      <MaterialIcons
+                        name="savings"
+                        size={20}
+                        color={getStatusColor(contribution.status)}
+                      />
+                    </View>
+                    <View style={styles.transactionInfo}>
+                      <Text style={styles.transactionTitle}>
+                        {formatMonth(contribution.month)}
+                      </Text>
+                      <Text style={styles.transactionDate}>
+                        {new Date(contribution.created_at).toLocaleDateString("en-US", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.transactionRight}>
+                    <Text
+                      style={[
+                        styles.transactionAmount,
+                        { color: getStatusColor(contribution.status) },
+                      ]}
+                    >
+                      +₦{formatCurrency(contribution.amount)}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.transactionStatus,
+                        { color: getStatusColor(contribution.status) },
+                      ]}
+                    >
+                      {contribution.status.toUpperCase()}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </Animated.View>
+        )}
+
+        {/* Empty State */}
+        {!isLoading && contributions.length === 0 && !error && (
+          <Animated.View
+            entering={FadeInUp.delay(400).duration(400)}
+            style={styles.emptyContainer}
+          >
+            <MaterialIcons name="savings" size={64} color={colors.outlineVariant} />
+            <Text style={styles.emptyTitle}>No Contributions Yet</Text>
+            <Text style={styles.emptyText}>
+              Start making contributions to build your savings with DOMICOP.
+            </Text>
+          </Animated.View>
+        )}
 
         {/* Bottom Padding */}
         <View style={styles.bottomPadding} />
@@ -401,5 +541,62 @@ const createStyles = (colors: typeof lightColors) =>
     },
     bottomPadding: {
       height: 100,
+    },
+    loadingContainer: {
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: theme.spacing["3xl"],
+    },
+    loadingText: {
+      fontFamily: typography.fontFamily.body,
+      fontSize: typography.size.base,
+      color: colors.onSurfaceVariant,
+    },
+    errorContainer: {
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: theme.spacing["3xl"],
+      gap: theme.spacing.base,
+    },
+    errorText: {
+      fontFamily: typography.fontFamily.body,
+      fontSize: typography.size.base,
+      color: colors.error,
+      textAlign: "center",
+      marginTop: theme.spacing.base,
+    },
+    retryButton: {
+      backgroundColor: colors.primary,
+      paddingVertical: theme.spacing.base,
+      paddingHorizontal: theme.spacing.xl,
+      borderRadius: theme.borderRadius.lg,
+      marginTop: theme.spacing.base,
+    },
+    retryButtonText: {
+      fontFamily: typography.fontFamily.label,
+      fontSize: typography.size.base,
+      fontWeight: typography.fontWeight.bold as any,
+      color: colors.onPrimary,
+    },
+    emptyContainer: {
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: theme.spacing["3xl"],
+      gap: theme.spacing.base,
+    },
+    emptyTitle: {
+      fontFamily: typography.fontFamily.headline,
+      fontSize: typography.size.xl,
+      fontWeight: typography.fontWeight.bold as any,
+      color: colors.onSurface,
+      marginTop: theme.spacing.base,
+    },
+    emptyText: {
+      fontFamily: typography.fontFamily.body,
+      fontSize: typography.size.base,
+      color: colors.onSurfaceVariant,
+      textAlign: "center",
+      paddingHorizontal: theme.spacing.xl,
+      lineHeight: 22,
     },
   });

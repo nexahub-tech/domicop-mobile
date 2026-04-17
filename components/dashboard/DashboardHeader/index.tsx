@@ -1,12 +1,12 @@
-import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { useTheme, lightColors } from "@/contexts/ThemeContext";
 import { theme } from "@/styles/theme";
 import { typography } from "@/constants/typography";
-import { mockUser, getInitials } from "@/data/mockData";
+import { signUp } from "@/lib/api/sign-up.api";
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -74,13 +74,43 @@ const createStyles = (colors: typeof lightColors) =>
       borderRadius: theme.borderRadius.full,
       backgroundColor: colors.surface,
     },
+    loadingContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
   });
 
 export const DashboardHeader: React.FC = () => {
   const router = useRouter();
   const { colors } = useTheme();
   const styles = createStyles(colors);
-  const initials = getInitials(mockUser.name);
+  const [userName, setUserName] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadUserProfile();
+  }, []);
+
+  const loadUserProfile = async () => {
+    try {
+      const profile = await signUp.getProfile();
+      setUserName(profile.full_name || "User");
+    } catch (error) {
+      console.error("Failed to load user profile:", error);
+      setUserName("User");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getInitials = (name: string): string => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
   const handleNotificationsPress = () => {
     router.push("/notifications");
@@ -93,14 +123,20 @@ export const DashboardHeader: React.FC = () => {
           {/* Avatar with Initials */}
           <View style={styles.avatarContainer}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{initials}</Text>
+              <Text style={styles.avatarText}>
+                {isLoading ? "" : getInitials(userName)}
+              </Text>
             </View>
           </View>
 
           {/* Welcome Text */}
           <View style={styles.textContainer}>
             <Text style={styles.welcomeText}>Welcome back,</Text>
-            <Text style={styles.nameText}>{mockUser.name}</Text>
+            {isLoading ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Text style={styles.nameText}>{userName}</Text>
+            )}
           </View>
         </View>
 

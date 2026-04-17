@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -18,74 +18,117 @@ import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { useTheme, lightColors } from '@/contexts/ThemeContext';
 import { theme } from '@/styles/theme';
 import { typography } from '@/constants/typography';
-import { ProfileImagePicker } from '@/components/forms/ProfileImagePicker';
-import { mockUser } from '@/data/mockData';
+import { signUp } from '@/lib/api/sign-up.api';
+import { InfoModal } from '@/components/modals/InfoModal';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
+
+const NIGERIAN_BANKS = [
+  { value: '044', label: 'Access Bank' },
+  { value: '023', label: 'Citibank Nigeria' },
+  { value: '050', label: 'Ecobank Nigeria' },
+  { value: '070', label: 'Fidelity Bank' },
+  { value: '011', label: 'First Bank of Nigeria' },
+  { value: '214', label: 'First City Monument Bank' },
+  { value: '058', label: 'Guaranty Trust Bank' },
+  { value: '030', label: 'Heritage Bank' },
+  { value: '301', label: 'Jaiz Bank' },
+  { value: '082', label: 'Keystone Bank' },
+  { value: '076', label: 'Polaris Bank' },
+  { value: '039', label: 'Stanbic IBTC Bank' },
+  { value: '232', label: 'Sterling Bank' },
+  { value: '032', label: 'Union Bank of Nigeria' },
+  { value: '033', label: 'United Bank for Africa' },
+  { value: '215', label: 'Unity Bank' },
+  { value: '035', label: 'Wema Bank' },
+  { value: '057', label: 'Zenith Bank' },
+  { value: '559', label: 'Coronation Merchant Bank' },
+  { value: '502', label: 'Providus Bank' },
+  { value: '526', label: 'Parallex Bank' },
+  { value: '503', label: 'SunTrust Bank' },
+  { value: '101', label: 'ProvidusBank' },
+];
 
 export default function EditProfileScreen() {
   const router = useRouter();
   const { colors, isDarkMode } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = createStyles(colors, insets.bottom);
-  const [isSaving, setIsSaving] = useState(false);
 
-  // Form state
-  const [profile, setProfile] = useState({
-    name: mockUser.name,
-    email: 'alex.johnson@email.com',
-    phone: '+234 801 234 5678',
-    avatar: null as string | null,
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showBankSelector, setShowBankSelector] = useState(false);
+
+  const [formData, setFormData] = useState({
+    full_name: '',
+    phone: '',
+    address: '',
+    bank_name: '',
+    bank_code: '',
+    bank_account: '',
+    next_of_kin: '',
   });
 
-  const [errors, setErrors] = useState<{
-    name?: string;
-    email?: string;
-    phone?: string;
-  }>({});
+  useEffect(() => {
+    loadProfile();
+  }, []);
 
-  const handleImageSelect = (imageUri: string) => {
-    setProfile({ ...profile, avatar: imageUri });
-  };
-
-  const validateForm = () => {
-    const newErrors: { name?: string; email?: string; phone?: string } = {};
-
-    if (!profile.name.trim()) {
-      newErrors.name = 'Name is required';
+  const loadProfile = async () => {
+    try {
+      const profile = await signUp.getProfile();
+      setFormData({
+        full_name: profile.full_name || '',
+        phone: profile.phone || '',
+        address: profile.address || '',
+        bank_name: profile.bank_name || '',
+        bank_code: profile.bank_code || '',
+        bank_account: profile.bank_account || '',
+        next_of_kin: profile.next_of_kin || '',
+      });
+    } catch (error) {
+      console.error('Failed to load profile:', error);
+    } finally {
+      setIsLoading(false);
     }
-
-    if (!profile.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)) {
-      newErrors.email = 'Please enter a valid email';
-    }
-
-    if (!profile.phone.trim()) {
-      newErrors.phone = 'Phone number is required';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
   };
 
   const handleSave = async () => {
-    if (!validateForm()) return;
-
     setIsSaving(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    setIsSaving(false);
-    Alert.alert('Success', 'Profile updated successfully!', [
-      { text: 'OK', onPress: () => router.back() },
-    ]);
+    try {
+      await signUp.updateProfile(formData);
+      setShowSuccessModal(true);
+    } catch (error) {
+      console.error('Failed to save profile:', error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleBack = () => {
     router.back();
   };
+
+  const handleBankSelect = (code: string, name: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      bank_code: code,
+      bank_name: name,
+    }));
+    setShowBankSelector(false);
+  };
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar style={isDarkMode ? 'light' : 'dark'} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -112,25 +155,17 @@ export default function EditProfileScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Profile Image Picker */}
+          {/* Personal Information Section */}
           <Animated.View entering={FadeInUp.delay(100).duration(400)}>
-            <ProfileImagePicker
-              image={profile.avatar}
-              name={profile.name}
-              onImageSelect={handleImageSelect}
-            />
-          </Animated.View>
+            <Text style={styles.sectionTitle}>Personal Information</Text>
 
-          {/* Form Fields */}
-          <View style={styles.formContainer}>
-            {/* Full Name */}
-            <Animated.View entering={FadeInUp.delay(200).duration(400)} style={styles.fieldContainer}>
+            <View style={styles.inputGroup}>
               <Text style={styles.label}>Full Name</Text>
               <View style={styles.inputWrapper}>
                 <TextInput
                   style={styles.input}
-                  value={profile.name}
-                  onChangeText={(text) => setProfile({ ...profile, name: text })}
+                  value={formData.full_name}
+                  onChangeText={(text) => setFormData((prev) => ({ ...prev, full_name: text }))}
                   placeholder="Enter your full name"
                   placeholderTextColor={colors.onSurfaceVariant}
                 />
@@ -141,41 +176,16 @@ export default function EditProfileScreen() {
                   style={styles.inputIcon}
                 />
               </View>
-              {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
-            </Animated.View>
+            </View>
 
-            {/* Email */}
-            <Animated.View entering={FadeInUp.delay(300).duration(400)} style={styles.fieldContainer}>
-              <Text style={styles.label}>Email Address</Text>
-              <View style={styles.inputWrapper}>
-                <TextInput
-                  style={styles.input}
-                  value={profile.email}
-                  onChangeText={(text) => setProfile({ ...profile, email: text })}
-                  placeholder="Enter your email"
-                  placeholderTextColor={colors.onSurfaceVariant}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-                <MaterialIcons
-                  name="mail"
-                  size={20}
-                  color={colors.onSurfaceVariant}
-                  style={styles.inputIcon}
-                />
-              </View>
-              {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-            </Animated.View>
-
-            {/* Phone */}
-            <Animated.View entering={FadeInUp.delay(400).duration(400)} style={styles.fieldContainer}>
+            <View style={styles.inputGroup}>
               <Text style={styles.label}>Phone Number</Text>
               <View style={styles.inputWrapper}>
                 <TextInput
                   style={styles.input}
-                  value={profile.phone}
-                  onChangeText={(text) => setProfile({ ...profile, phone: text })}
-                  placeholder="Enter your phone number"
+                  value={formData.phone}
+                  onChangeText={(text) => setFormData((prev) => ({ ...prev, phone: text }))}
+                  placeholder="+234 801 234 5678"
                   placeholderTextColor={colors.onSurfaceVariant}
                   keyboardType="phone-pad"
                 />
@@ -186,9 +196,119 @@ export default function EditProfileScreen() {
                   style={styles.inputIcon}
                 />
               </View>
-              {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
-            </Animated.View>
-          </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Address</Text>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={styles.input}
+                  value={formData.address}
+                  onChangeText={(text) => setFormData((prev) => ({ ...prev, address: text }))}
+                  placeholder="Enter your address"
+                  placeholderTextColor={colors.onSurfaceVariant}
+                  multiline
+                />
+                <MaterialIcons
+                  name="location-on"
+                  size={20}
+                  color={colors.onSurfaceVariant}
+                  style={styles.inputIcon}
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Next of Kin</Text>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={styles.input}
+                  value={formData.next_of_kin}
+                  onChangeText={(text) => setFormData((prev) => ({ ...prev, next_of_kin: text }))}
+                  placeholder="Name - Phone Number"
+                  placeholderTextColor={colors.onSurfaceVariant}
+                />
+                <MaterialIcons
+                  name="people"
+                  size={20}
+                  color={colors.onSurfaceVariant}
+                  style={styles.inputIcon}
+                />
+              </View>
+              <Text style={styles.helperText}>Emergency contact person</Text>
+            </View>
+          </Animated.View>
+
+          {/* Bank Details Section */}
+          <Animated.View entering={FadeInUp.delay(200).duration(400)} style={styles.sectionSpacing}>
+            <Text style={styles.sectionTitle}>Bank Details</Text>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Bank</Text>
+              <TouchableOpacity
+                style={styles.inputWrapper}
+                onPress={() => setShowBankSelector(!showBankSelector)}
+              >
+                <Text
+                  style={[
+                    styles.input,
+                    !formData.bank_name && styles.placeholder,
+                  ]}
+                >
+                  {formData.bank_name || 'Select your bank'}
+                </Text>
+                <MaterialIcons
+                  name="arrow-drop-down"
+                  size={20}
+                  color={colors.onSurfaceVariant}
+                  style={styles.inputIcon}
+                />
+              </TouchableOpacity>
+
+              {showBankSelector && (
+                <View style={styles.bankList}>
+                  <ScrollView style={styles.bankScrollView} nestedScrollEnabled>
+                    {NIGERIAN_BANKS.map((bank) => (
+                      <TouchableOpacity
+                        key={bank.value}
+                        style={styles.bankOption}
+                        onPress={() => handleBankSelect(bank.value, bank.label)}
+                      >
+                        <Text style={styles.bankOptionText}>{bank.label}</Text>
+                        {formData.bank_code === bank.value && (
+                          <MaterialIcons name="check" size={20} color={colors.primary} />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Account Number</Text>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={styles.input}
+                  value={formData.bank_account}
+                  onChangeText={(text) =>
+                    setFormData((prev) => ({ ...prev, bank_account: text }))
+                  }
+                  placeholder="1234567890"
+                  placeholderTextColor={colors.onSurfaceVariant}
+                  keyboardType="numeric"
+                  maxLength={10}
+                />
+                <MaterialIcons
+                  name="account-balance"
+                  size={20}
+                  color={colors.onSurfaceVariant}
+                  style={styles.inputIcon}
+                />
+              </View>
+              <Text style={styles.helperText}>10-digit bank account number</Text>
+            </View>
+          </Animated.View>
 
           {/* Bottom padding */}
           <View style={styles.bottomPadding} />
@@ -198,14 +318,14 @@ export default function EditProfileScreen() {
       {/* Save Button */}
       <View style={styles.buttonContainer}>
         <AnimatedTouchable
-          entering={FadeInUp.delay(500).duration(400)}
+          entering={FadeInUp.delay(300).duration(400)}
           onPress={handleSave}
           disabled={isSaving}
           style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
           activeOpacity={0.8}
         >
           {isSaving ? (
-            <Text style={styles.saveButtonText}>Saving...</Text>
+            <ActivityIndicator size="small" color={colors.onPrimary} />
           ) : (
             <>
               <Text style={styles.saveButtonText}>Save Changes</Text>
@@ -214,130 +334,179 @@ export default function EditProfileScreen() {
           )}
         </AnimatedTouchable>
       </View>
+
+      {/* Success Modal */}
+      <InfoModal
+        visible={showSuccessModal}
+        onClose={() => {
+          setShowSuccessModal(false);
+          router.back();
+        }}
+        icon="check-circle"
+        iconColor={colors.success || colors.primary}
+        title="Profile Updated"
+        message="Your profile has been updated successfully."
+        primaryButtonText="Done"
+        showCloseButton={false}
+      />
     </SafeAreaView>
   );
 }
 
-const createStyles = (colors: typeof lightColors, bottomInset: number) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    backgroundColor: colors.surface,
-    shadowColor: colors.primary,
-    shadowOffset: {
-      width: 0,
-      height: 2,
+const createStyles = (colors: typeof lightColors, bottomInset: number) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
     },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.lg,
-    paddingBottom: theme.spacing.base,
-  },
-  backButton: {
-    padding: theme.spacing.sm,
-    borderRadius: theme.borderRadius.full,
-    minWidth: 44,
-  },
-  headerTitle: {
-    fontFamily: typography.fontFamily.headline,
-    fontSize: typography.size.lg,
-    fontWeight: typography.fontWeight.bold as any,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingTop: theme.spacing.lg,
-  },
-  formContainer: {
-    paddingHorizontal: theme.spacing.lg,
-  },
-  fieldContainer: {
-    marginBottom: theme.spacing.lg,
-  },
-  label: {
-    fontFamily: typography.fontFamily.label,
-    fontSize: typography.size.xs,
-    fontWeight: typography.fontWeight.bold as any,
-    color: colors.onSurfaceVariant,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: theme.spacing.sm,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surfaceContainer,
-    borderRadius: theme.borderRadius.xl,
-    paddingHorizontal: theme.spacing.lg,
-  },
-  input: {
-    flex: 1,
-    height: 56,
-    fontFamily: typography.fontFamily.body,
-    fontSize: typography.size.base,
-    color: colors.onSurface,
-    paddingRight: theme.spacing.lg,
-  },
-  inputIcon: {
-    opacity: 0.5,
-  },
-  errorText: {
-    fontFamily: typography.fontFamily.body,
-    fontSize: typography.size.xs,
-    color: colors.error,
-    marginTop: theme.spacing.xs,
-  },
-  bottomPadding: {
-    height: 100,
-  },
-  buttonContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: theme.spacing.lg,
-    paddingBottom: Math.max(bottomInset, theme.spacing.lg) + theme.spacing.lg,
-    backgroundColor: colors.background,
-    borderTopWidth: 1,
-    borderTopColor: colors.outlineVariant,
-  },
-  saveButton: {
-    backgroundColor: colors.primary,
-    borderRadius: theme.borderRadius.xl,
-    paddingVertical: theme.spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: theme.spacing.sm,
-    shadowColor: colors.primary,
-    shadowOffset: {
-      width: 0,
-      height: 4,
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  saveButtonDisabled: {
-    opacity: 0.7,
-  },
-  saveButtonText: {
-    fontFamily: typography.fontFamily.headline,
-    fontSize: typography.size.base,
-    fontWeight: typography.fontWeight.bold as any,
-    color: colors.onPrimary,
-  },
-});
+    header: {
+      backgroundColor: colors.surface,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    headerContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: theme.spacing.lg,
+      paddingTop: theme.spacing.lg,
+      paddingBottom: theme.spacing.base,
+    },
+    backButton: {
+      padding: theme.spacing.sm,
+      borderRadius: theme.borderRadius.full,
+      minWidth: 44,
+    },
+    headerTitle: {
+      fontFamily: typography.fontFamily.headline,
+      fontSize: typography.size.lg,
+      fontWeight: typography.fontWeight.bold as any,
+    },
+    keyboardView: {
+      flex: 1,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    scrollContent: {
+      paddingTop: theme.spacing.lg,
+      paddingHorizontal: theme.spacing.lg,
+    },
+    sectionTitle: {
+      fontFamily: typography.fontFamily.headline,
+      fontSize: typography.size.base,
+      fontWeight: typography.fontWeight.semibold as any,
+      color: colors.onSurface,
+      marginBottom: theme.spacing.lg,
+    },
+    sectionSpacing: {
+      marginTop: theme.spacing.xl,
+    },
+    inputGroup: {
+      marginBottom: theme.spacing.lg,
+    },
+    label: {
+      fontFamily: typography.fontFamily.label,
+      fontSize: typography.size.xs,
+      fontWeight: typography.fontWeight.bold as any,
+      color: colors.onSurfaceVariant,
+      textTransform: 'uppercase',
+      letterSpacing: 1,
+      marginBottom: theme.spacing.sm,
+    },
+    inputWrapper: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surfaceContainer,
+      borderRadius: theme.borderRadius.xl,
+      paddingHorizontal: theme.spacing.lg,
+      minHeight: 56,
+    },
+    input: {
+      flex: 1,
+      fontFamily: typography.fontFamily.body,
+      fontSize: typography.size.base,
+      color: colors.onSurface,
+      paddingVertical: theme.spacing.base,
+    },
+    placeholder: {
+      color: colors.onSurfaceVariant,
+    },
+    inputIcon: {
+      opacity: 0.5,
+    },
+    helperText: {
+      fontFamily: typography.fontFamily.body,
+      fontSize: typography.size.xs,
+      color: colors.onSurfaceVariant,
+      marginTop: theme.spacing.xs,
+    },
+    bankList: {
+      backgroundColor: colors.surfaceContainer,
+      borderRadius: theme.borderRadius.lg,
+      marginTop: theme.spacing.sm,
+      maxHeight: 200,
+    },
+    bankScrollView: {
+      maxHeight: 200,
+    },
+    bankOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: theme.spacing.base,
+      paddingHorizontal: theme.spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.outlineVariant,
+    },
+    bankOptionText: {
+      fontFamily: typography.fontFamily.body,
+      fontSize: typography.size.base,
+      color: colors.onSurface,
+    },
+    bottomPadding: {
+      height: 100,
+    },
+    buttonContainer: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      padding: theme.spacing.lg,
+      paddingBottom: Math.max(bottomInset, theme.spacing.lg) + theme.spacing.lg,
+      backgroundColor: colors.background,
+      borderTopWidth: 1,
+      borderTopColor: colors.outlineVariant,
+    },
+    saveButton: {
+      backgroundColor: colors.primary,
+      borderRadius: theme.borderRadius.xl,
+      paddingVertical: theme.spacing.lg,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: theme.spacing.sm,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      elevation: 4,
+    },
+    saveButtonDisabled: {
+      opacity: 0.7,
+    },
+    saveButtonText: {
+      fontFamily: typography.fontFamily.headline,
+      fontSize: typography.size.base,
+      fontWeight: typography.fontWeight.bold as any,
+      color: colors.onPrimary,
+    },
+  });

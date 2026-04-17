@@ -26,9 +26,14 @@ export interface LoanData {
   currentMonth: number;
 }
 
-export type TransactionType = 'contribution' | 'interest' | 'loan_repayment' | 'fee' | 'withdrawal';
-export type TransactionCategory = 'savings' | 'loan';
-export type TransactionStatus = 'completed' | 'pending' | 'automated';
+export type TransactionType =
+  | "contribution"
+  | "interest"
+  | "loan_repayment"
+  | "fee"
+  | "withdrawal";
+export type TransactionCategory = "savings" | "loan";
+export type TransactionStatus = "completed" | "pending" | "automated";
 
 export interface Transaction {
   id: string;
@@ -66,29 +71,29 @@ export interface SettingsSection {
 
 // User Data
 export const mockUser: User = {
-  id: 'user-001',
-  name: 'Alexander Sterling',
-  email: 'alexander.sterling@domicop.org',
-  memberSince: 'Jan 2023',
-  memberId: 'DOMI-882941',
+  id: "user-001",
+  name: "Alexander Sterling",
+  email: "alexander.sterling@domicop.org",
+  memberSince: "Jan 2023",
+  memberId: "DOMI-882941",
 };
 
 // Savings Data (in Naira)
 export const mockSavingsData: SavingsData = {
-  totalSaved: 4285000.00,
-  monthlyGoal: 1500000.00,
-  dividendsEarned: 42850.00,
+  totalSaved: 4285000.0,
+  monthlyGoal: 1500000.0,
+  dividendsEarned: 42850.0,
   growthPercentage: 2.4,
 };
 
 // Loan Data (in Naira)
 export const mockLoanData: LoanData = {
-  activeBalance: 1240000.00,
+  activeBalance: 1240000.0,
   nextPayment: {
-    date: 'June 15, 2024',
-    amount: 45000.00,
+    date: "June 15, 2024",
+    amount: 45000.0,
   },
-  progress: '3/24 MONTHS',
+  progress: "3/24 MONTHS",
   totalMonths: 24,
   currentMonth: 3,
 };
@@ -96,182 +101,182 @@ export const mockLoanData: LoanData = {
 // Quick Actions (only 2 as per requirements)
 export const mockQuickActions: QuickAction[] = [
   {
-    id: 'deposit',
-    icon: 'add-circle',
-    label: 'Deposit',
-    route: '/transactions/add-contribution',
+    id: "deposit",
+    icon: "add-circle",
+    label: "Deposit",
+    route: "/transactions/add-contribution",
   },
   {
-    id: 'apply',
-    icon: 'request-quote',
-    label: 'Apply',
-    route: '/transactions/apply-for-loan',
+    id: "apply",
+    icon: "request-quote",
+    label: "Apply",
+    route: "/transactions/apply-for-loan",
   },
 ];
 
 // Recent Transactions (mixed savings and loan activity) - in Naira
 export const mockRecentTransactions: Transaction[] = [
   {
-    id: 'txn-001',
-    type: 'contribution',
-    category: 'savings',
-    title: 'Monthly Contribution',
-    date: 'June 01, 2024',
-    time: '10:45 AM',
-    amount: 250000.00,
-    status: 'completed',
+    id: "txn-001",
+    type: "contribution",
+    category: "savings",
+    title: "Monthly Contribution",
+    date: "June 01, 2024",
+    time: "10:45 AM",
+    amount: 250000.0,
+    status: "completed",
   },
   {
-    id: 'txn-002',
-    type: 'interest',
-    category: 'savings',
-    title: 'Interest Credited',
-    date: 'May 31, 2024',
-    time: '11:59 PM',
-    amount: 12450.00,
-    status: 'automated',
+    id: "txn-002",
+    type: "interest",
+    category: "savings",
+    title: "Interest Credited",
+    date: "May 31, 2024",
+    time: "11:59 PM",
+    amount: 12450.0,
+    status: "automated",
   },
   {
-    id: 'txn-003',
-    type: 'loan_repayment',
-    category: 'loan',
-    title: 'Loan Repayment',
-    date: 'May 15, 2024',
-    time: '02:20 PM',
-    amount: -45000.00,
-    status: 'completed',
-    loanId: 'LN-8821',
+    id: "txn-003",
+    type: "loan_repayment",
+    category: "loan",
+    title: "Loan Repayment",
+    date: "May 15, 2024",
+    time: "02:20 PM",
+    amount: -45000.0,
+    status: "completed",
+    loanId: "LN-8821",
   },
   {
-    id: 'txn-004',
-    type: 'fee',
-    category: 'loan',
-    title: 'Processing Fee',
-    date: 'May 15, 2024',
-    time: '02:20 PM',
-    amount: -5000.00,
-    status: 'completed',
+    id: "txn-004",
+    type: "fee",
+    category: "loan",
+    title: "Processing Fee",
+    date: "May 15, 2024",
+    time: "02:20 PM",
+    amount: -5000.0,
+    status: "completed",
   },
 ];
 
 // Savings-specific transactions (for savings tab) - in Naira
 export const mockSavingsTransactions: Transaction[] = [
   {
-    id: 'sav-001',
-    type: 'contribution',
-    category: 'savings',
-    title: 'March Contribution',
-    date: 'Mar 12, 2024',
-    time: '09:45 AM',
-    amount: 650000.00,
-    status: 'completed',
+    id: "sav-001",
+    type: "contribution",
+    category: "savings",
+    title: "March Contribution",
+    date: "Mar 12, 2024",
+    time: "09:45 AM",
+    amount: 650000.0,
+    status: "completed",
   },
   {
-    id: 'sav-002',
-    type: 'contribution',
-    category: 'savings',
-    title: 'February Contribution',
-    date: 'Feb 15, 2024',
-    time: '02:15 PM',
-    amount: 500000.00,
-    status: 'completed',
+    id: "sav-002",
+    type: "contribution",
+    category: "savings",
+    title: "February Contribution",
+    date: "Feb 15, 2024",
+    time: "02:15 PM",
+    amount: 500000.0,
+    status: "completed",
   },
   {
-    id: 'sav-003',
-    type: 'interest',
-    category: 'savings',
-    title: 'Annual Dividend Payout',
-    date: 'Jan 30, 2024',
-    time: '11:00 AM',
-    amount: 1240000.00,
-    status: 'completed',
+    id: "sav-003",
+    type: "interest",
+    category: "savings",
+    title: "Annual Dividend Payout",
+    date: "Jan 30, 2024",
+    time: "11:00 AM",
+    amount: 1240000.0,
+    status: "completed",
   },
   {
-    id: 'sav-004',
-    type: 'contribution',
-    category: 'savings',
-    title: 'January Contribution',
-    date: 'Jan 15, 2024',
-    time: '10:30 AM',
-    amount: 500000.00,
-    status: 'completed',
+    id: "sav-004",
+    type: "contribution",
+    category: "savings",
+    title: "January Contribution",
+    date: "Jan 15, 2024",
+    time: "10:30 AM",
+    amount: 500000.0,
+    status: "completed",
   },
   {
-    id: 'sav-005',
-    type: 'withdrawal',
-    category: 'savings',
-    title: 'Emergency Withdrawal',
-    date: 'Dec 20, 2023',
-    time: '04:50 PM',
-    amount: -200000.00,
-    status: 'completed',
+    id: "sav-005",
+    type: "withdrawal",
+    category: "savings",
+    title: "Emergency Withdrawal",
+    date: "Dec 20, 2023",
+    time: "04:50 PM",
+    amount: -200000.0,
+    status: "completed",
   },
 ];
 
 // Profile Settings Sections
 export const mockProfileSettings: SettingsSection[] = [
   {
-    id: 'account-settings',
-    title: 'Account Settings',
+    id: "account-settings",
+    title: "Account Settings",
     items: [
       {
-        id: 'edit-details',
-        icon: 'person',
-        title: 'Edit Account Details',
-        subtitle: 'Update name, email, and phone',
-        route: '/settings/edit-profile',
+        id: "edit-details",
+        icon: "person",
+        title: "Edit Account Details",
+        subtitle: "Update name, email, and phone",
+        route: "/settings/edit-profile",
       },
       {
-        id: 'security',
-        icon: 'security',
-        title: 'Security Settings',
-        subtitle: 'Passwords and 2FA',
-        route: '/settings/security',
+        id: "security",
+        icon: "security",
+        title: "Security Settings",
+        subtitle: "Passwords and 2FA",
+        route: "/settings/security",
       },
       {
-        id: 'notifications',
-        icon: 'notifications',
-        title: 'Notification Preferences',
-        subtitle: 'Email and push alerts',
-        route: '/settings/notification-preferences',
+        id: "notifications",
+        icon: "notifications",
+        title: "Notification Preferences",
+        subtitle: "Email and push alerts",
+        route: "/settings/notification-preferences",
       },
       {
-        id: 'theme',
-        icon: 'palette',
-        title: 'Theme Preference',
-        subtitle: 'Light, dark or system default',
-        route: '/settings/theme-preference',
+        id: "theme",
+        icon: "palette",
+        title: "Theme Preference",
+        subtitle: "Light, dark or system default",
+        route: "/settings/theme-preference",
       },
     ],
   },
   {
-    id: 'more-options',
-    title: 'More Options',
+    id: "more-options",
+    title: "More Options",
     items: [
       {
-        id: 'support',
-        icon: 'help',
-        title: 'Support & FAQ',
-        route: '/support',
+        id: "support",
+        icon: "help",
+        title: "Support & FAQ",
+        route: "/support",
       },
       {
-        id: 'privacy',
-        icon: 'description',
-        title: 'Privacy Policy',
-        route: '/privacy',
+        id: "privacy",
+        icon: "description",
+        title: "Privacy Policy",
+        route: "/privacy",
       },
       {
-        id: 'logout',
-        icon: 'logout',
-        title: 'Log Out',
-        route: '/logout',
+        id: "logout",
+        icon: "logout",
+        title: "Log Out",
+        route: "/logout",
         destructive: true,
       },
       {
-        id: 'delete-account',
-        icon: 'delete-forever',
-        title: 'Delete Account',
-        route: '/delete-account',
+        id: "delete-account",
+        icon: "delete-forever",
+        title: "Delete Account",
+        route: "/delete-account",
         destructive: true,
       },
     ],
@@ -281,7 +286,7 @@ export const mockProfileSettings: SettingsSection[] = [
 // Helper functions
 export const formatCurrency = (amount: number): string => {
   const absAmount = Math.abs(amount);
-  const formatted = absAmount.toLocaleString('en-NG', {
+  const formatted = absAmount.toLocaleString("en-NG", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -289,14 +294,14 @@ export const formatCurrency = (amount: number): string => {
 };
 
 export const formatCurrencyNoSign = (amount: number): string => {
-  return amount.toLocaleString('en-NG', {
+  return amount.toLocaleString("en-NG", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
 };
 
 export const getInitials = (name: string): string => {
-  const parts = name.split(' ');
+  const parts = name.split(" ");
   if (parts.length >= 2) {
     return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
   }
@@ -305,47 +310,47 @@ export const getInitials = (name: string): string => {
 
 export const getTransactionIcon = (type: TransactionType): string => {
   switch (type) {
-    case 'contribution':
-      return 'trending-up';
-    case 'interest':
-      return 'stars';
-    case 'loan_repayment':
-      return 'keyboard-double-arrow-right';
-    case 'fee':
-      return 'history-edu';
-    case 'withdrawal':
-      return 'payments';
+    case "contribution":
+      return "trending-up";
+    case "interest":
+      return "stars";
+    case "loan_repayment":
+      return "keyboard-double-arrow-right";
+    case "fee":
+      return "history-edu";
+    case "withdrawal":
+      return "payments";
     default:
-      return 'receipt';
+      return "receipt";
   }
 };
 
 export const getTransactionIconColor = (type: TransactionType): string => {
   switch (type) {
-    case 'contribution':
-    case 'interest':
-      return '#22c55e'; // emerald-500
-    case 'loan_repayment':
-    case 'fee':
-    case 'withdrawal':
-      return '#0f172a'; // slate-900
+    case "contribution":
+    case "interest":
+      return "#22c55e"; // emerald-500
+    case "loan_repayment":
+    case "fee":
+    case "withdrawal":
+      return "#0f172a"; // slate-900
     default:
-      return '#475569'; // slate-600
+      return "#475569"; // slate-600
   }
 };
 
 export const getTransactionBgColor = (type: TransactionType): string => {
   switch (type) {
-    case 'contribution':
-    case 'interest':
-      return '#ecfdf5'; // emerald-50
-    case 'loan_repayment':
-    case 'fee':
-      return '#eff6ff'; // blue-50
-    case 'withdrawal':
-      return '#f1f5f9'; // slate-100
+    case "contribution":
+    case "interest":
+      return "#ecfdf5"; // emerald-50
+    case "loan_repayment":
+    case "fee":
+      return "#eff6ff"; // blue-50
+    case "withdrawal":
+      return "#f1f5f9"; // slate-100
     default:
-      return '#f1f5f9'; // slate-100
+      return "#f1f5f9"; // slate-100
   }
 };
 
@@ -353,19 +358,19 @@ export const getTransactionBgColor = (type: TransactionType): string => {
 // LOAN DATA & CONFIGURATION
 // ============================================
 
-export type LoanPurpose = 
-  | 'business' 
-  | 'education' 
-  | 'emergency'
-  | 'medical'
-  | 'home_improvement'
-  | 'vehicle'
-  | 'wedding'
-  | 'travel'
-  | 'debt_consolidation'
-  | 'agriculture';
+export type LoanPurpose =
+  | "business"
+  | "education"
+  | "emergency"
+  | "medical"
+  | "home_improvement"
+  | "vehicle"
+  | "wedding"
+  | "travel"
+  | "debt_consolidation"
+  | "agriculture";
 
-export type LoanStatus = 'on_track' | 'pending' | 'completed' | 'overdue';
+export type LoanStatus = "on_track" | "pending" | "completed" | "overdue";
 
 export interface Loan {
   id: string;
@@ -397,8 +402,8 @@ export interface LoanPurposeConfig {
 
 // Loan Configuration
 export const loanConfig = {
-  minAmount: 50000,      // ₦50,000
-  maxAmount: 5000000,    // ₦5,000,000
+  minAmount: 50000, // ₦50,000
+  maxAmount: 5000000, // ₦5,000,000
   defaultInterestRate: 12, // 12% APR
   minTerm: 3,
   maxTerm: 60,
@@ -406,38 +411,93 @@ export const loanConfig = {
 
 // 10 Loan Purposes with styling
 export const loanPurposes: LoanPurposeConfig[] = [
-  { id: 'business', label: 'Business', icon: 'storefront', color: '#0b50da', bgColor: '#eff6ff' },
-  { id: 'education', label: 'Education', icon: 'school', color: '#7c3aed', bgColor: '#f3e8ff' },
-  { id: 'emergency', label: 'Emergency', icon: 'emergency', color: '#ea580c', bgColor: '#fff7ed' },
-  { id: 'medical', label: 'Medical', icon: 'medical-services', color: '#0d9488', bgColor: '#f0fdfa' },
-  { id: 'home_improvement', label: 'Home', icon: 'home-repair-service', color: '#16a34a', bgColor: '#f0fdf4' },
-  { id: 'vehicle', label: 'Vehicle', icon: 'directions-car', color: '#4f46e5', bgColor: '#eef2ff' },
-  { id: 'wedding', label: 'Wedding', icon: 'celebration', color: '#db2777', bgColor: '#fdf2f8' },
-  { id: 'travel', label: 'Travel', icon: 'flight', color: '#0891b2', bgColor: '#ecfeff' },
-  { id: 'debt_consolidation', label: 'Debt', icon: 'account-balance', color: '#475569', bgColor: '#f8fafc' },
-  { id: 'agriculture', label: 'Agriculture', icon: 'agriculture', color: '#059669', bgColor: '#ecfdf5' },
+  {
+    id: "business",
+    label: "Business",
+    icon: "storefront",
+    color: "#0b50da",
+    bgColor: "#eff6ff",
+  },
+  {
+    id: "education",
+    label: "Education",
+    icon: "school",
+    color: "#7c3aed",
+    bgColor: "#f3e8ff",
+  },
+  {
+    id: "emergency",
+    label: "Emergency",
+    icon: "emergency",
+    color: "#ea580c",
+    bgColor: "#fff7ed",
+  },
+  {
+    id: "medical",
+    label: "Medical",
+    icon: "medical-services",
+    color: "#0d9488",
+    bgColor: "#f0fdfa",
+  },
+  {
+    id: "home_improvement",
+    label: "Home",
+    icon: "home-repair-service",
+    color: "#16a34a",
+    bgColor: "#f0fdf4",
+  },
+  {
+    id: "vehicle",
+    label: "Vehicle",
+    icon: "directions-car",
+    color: "#4f46e5",
+    bgColor: "#eef2ff",
+  },
+  {
+    id: "wedding",
+    label: "Wedding",
+    icon: "celebration",
+    color: "#db2777",
+    bgColor: "#fdf2f8",
+  },
+  { id: "travel", label: "Travel", icon: "flight", color: "#0891b2", bgColor: "#ecfeff" },
+  {
+    id: "debt_consolidation",
+    label: "Debt",
+    icon: "account-balance",
+    color: "#475569",
+    bgColor: "#f8fafc",
+  },
+  {
+    id: "agriculture",
+    label: "Agriculture",
+    icon: "agriculture",
+    color: "#059669",
+    bgColor: "#ecfdf5",
+  },
 ];
 
 // Helper to get purpose config
 export const getLoanPurposeConfig = (purpose: LoanPurpose): LoanPurposeConfig => {
-  return loanPurposes.find(p => p.id === purpose) || loanPurposes[0];
+  return loanPurposes.find((p) => p.id === purpose) || loanPurposes[0];
 };
 
 // Loan calculation helper
 export const calculateLoan = (amount: number, term: number, rate: number) => {
   const monthlyRate = rate / 100 / 12;
   let monthlyPayment: number;
-  
+
   if (monthlyRate === 0) {
     monthlyPayment = amount / term;
   } else {
-    monthlyPayment = amount * (monthlyRate * Math.pow(1 + monthlyRate, term)) / 
+    monthlyPayment =
+      (amount * (monthlyRate * Math.pow(1 + monthlyRate, term))) /
       (Math.pow(1 + monthlyRate, term) - 1);
   }
-  
+
   const totalRepayment = monthlyPayment * term;
   const totalInterest = totalRepayment - amount;
-  
+
   return {
     monthlyPayment: Math.round(monthlyPayment * 100) / 100,
     totalRepayment: Math.round(totalRepayment * 100) / 100,
@@ -448,80 +508,80 @@ export const calculateLoan = (amount: number, term: number, rate: number) => {
 // Mock Loans Data
 export const mockLoans: Loan[] = [
   {
-    id: 'loan-001',
-    purpose: 'education',
-    title: 'Education Loan',
-    loanId: 'DOMI-88291',
+    id: "loan-001",
+    purpose: "education",
+    title: "Education Loan",
+    loanId: "DOMI-88291",
     totalAmount: 1240000,
     remainingBalance: 812000,
-    status: 'on_track',
+    status: "on_track",
     progress: 65,
     nextPayment: {
-      date: 'Sep 15, 2024',
+      date: "Sep 15, 2024",
       amount: 34000,
       daysLeft: 12,
     },
     interestRate: 10.5,
     termMonths: 36,
     monthlyPayment: 34000,
-    startDate: 'Jan 15, 2023',
+    startDate: "Jan 15, 2023",
   },
   {
-    id: 'loan-002',
-    purpose: 'emergency',
-    title: 'Emergency Loan',
-    loanId: 'DOMI-44102',
+    id: "loan-002",
+    purpose: "emergency",
+    title: "Emergency Loan",
+    loanId: "DOMI-44102",
     totalAmount: 180000,
     remainingBalance: 180000,
-    status: 'pending',
+    status: "pending",
     progress: 0,
     nextPayment: {
-      date: 'Oct 01, 2024',
+      date: "Oct 01, 2024",
       amount: 15000,
       daysLeft: 28,
     },
     interestRate: 15,
     termMonths: 12,
     monthlyPayment: 15000,
-    startDate: 'Sep 01, 2024',
+    startDate: "Sep 01, 2024",
   },
   {
-    id: 'loan-003',
-    purpose: 'medical',
-    title: 'Medical Loan',
-    loanId: 'DOMI-77321',
+    id: "loan-003",
+    purpose: "medical",
+    title: "Medical Loan",
+    loanId: "DOMI-77321",
     totalAmount: 850000,
     remainingBalance: 552500,
-    status: 'on_track',
+    status: "on_track",
     progress: 35,
     nextPayment: {
-      date: 'Sep 20, 2024',
+      date: "Sep 20, 2024",
       amount: 28333,
       daysLeft: 17,
     },
     interestRate: 8.5,
     termMonths: 30,
     monthlyPayment: 28333,
-    startDate: 'Mar 10, 2024',
+    startDate: "Mar 10, 2024",
   },
   {
-    id: 'loan-004',
-    purpose: 'business',
-    title: 'Business Expansion',
-    loanId: 'DOMI-99123',
+    id: "loan-004",
+    purpose: "business",
+    title: "Business Expansion",
+    loanId: "DOMI-99123",
     totalAmount: 2500000,
     remainingBalance: 1875000,
-    status: 'on_track',
+    status: "on_track",
     progress: 25,
     nextPayment: {
-      date: 'Sep 10, 2024',
+      date: "Sep 10, 2024",
       amount: 52083,
       daysLeft: 7,
     },
     interestRate: 12,
     termMonths: 48,
     monthlyPayment: 52083,
-    startDate: 'Jun 01, 2024',
+    startDate: "Jun 01, 2024",
   },
 ];
 
@@ -532,21 +592,23 @@ export const getTotalDebt = (): number => {
 
 // Get next payment across all loans
 export const getNextPayment = () => {
-  const activeLoans = mockLoans.filter(loan => loan.status !== 'completed');
+  const activeLoans = mockLoans.filter((loan) => loan.status !== "completed");
   if (activeLoans.length === 0) return null;
-  
+
   // Find loan with closest next payment
-  const sorted = activeLoans.sort((a, b) => a.nextPayment.daysLeft - b.nextPayment.daysLeft);
+  const sorted = activeLoans.sort(
+    (a, b) => a.nextPayment.daysLeft - b.nextPayment.daysLeft,
+  );
   return sorted[0].nextPayment;
 };
 
 // Loan insights/tips
 export const loanInsights = [
-  'Paying just ₦5,000 extra per month on your loans can save you significant interest over time.',
-  'Consider consolidating multiple loans to get a lower overall interest rate.',
-  'Setting up automatic payments ensures you never miss a due date.',
-  'Making bi-weekly payments instead of monthly can help you pay off loans faster.',
-  'Review your loan terms regularly - refinancing might save you money.',
+  "Paying just ₦5,000 extra per month on your loans can save you significant interest over time.",
+  "Consider consolidating multiple loans to get a lower overall interest rate.",
+  "Setting up automatic payments ensures you never miss a due date.",
+  "Making bi-weekly payments instead of monthly can help you pay off loans faster.",
+  "Review your loan terms regularly - refinancing might save you money.",
 ];
 
 // ============================================
@@ -562,46 +624,53 @@ export interface FAQ {
 
 export const faqData: FAQ[] = [
   {
-    id: 'faq-001',
-    icon: 'card-membership',
-    question: 'Membership eligibility & benefits',
-    answer: 'DOMICOP membership is open to all residents. Benefits include access to low-interest loans, community savings programs, and exclusive financial literacy workshops.',
+    id: "faq-001",
+    icon: "card-membership",
+    question: "Membership eligibility & benefits",
+    answer:
+      "DOMICOP membership is open to all residents. Benefits include access to low-interest loans, community savings programs, and exclusive financial literacy workshops.",
   },
   {
-    id: 'faq-002',
-    icon: 'payments',
-    question: 'How do I apply for a loan?',
-    answer: "Navigate to the 'Loans' tab in the bottom bar, select 'New Application', and follow the prompts. You'll need to provide identity verification and income statements for processing.",
+    id: "faq-002",
+    icon: "payments",
+    question: "How do I apply for a loan?",
+    answer:
+      "Navigate to the 'Loans' tab in the bottom bar, select 'New Application', and follow the prompts. You'll need to provide identity verification and income statements for processing.",
   },
   {
-    id: 'faq-003',
-    icon: 'schedule',
-    question: 'Payment methods and schedules',
-    answer: 'Payments are typically processed on the 1st and 15th of each month. We support bank transfers, mobile money, and direct debit from your DOMICOP wallet.',
+    id: "faq-003",
+    icon: "schedule",
+    question: "Payment methods and schedules",
+    answer:
+      "Payments are typically processed on the 1st and 15th of each month. We support bank transfers, mobile money, and direct debit from your DOMICOP wallet.",
   },
   {
-    id: 'faq-004',
-    icon: 'account-balance-wallet',
-    question: 'Loan repayment options',
-    answer: 'You can make partial or full repayments at any time without penalties. Early repayment discounts are available for qualifying members.',
+    id: "faq-004",
+    icon: "account-balance-wallet",
+    question: "Loan repayment options",
+    answer:
+      "You can make partial or full repayments at any time without penalties. Early repayment discounts are available for qualifying members.",
   },
   {
-    id: 'faq-005',
-    icon: 'savings',
-    question: 'Savings contribution rules',
-    answer: 'Members are encouraged to contribute a minimum of ₦10,000 monthly. Higher contributions unlock better loan rates and increased borrowing limits.',
+    id: "faq-005",
+    icon: "savings",
+    question: "Savings contribution rules",
+    answer:
+      "Members are encouraged to contribute a minimum of ₦10,000 monthly. Higher contributions unlock better loan rates and increased borrowing limits.",
   },
   {
-    id: 'faq-006',
-    icon: 'security',
-    question: 'Account security best practices',
-    answer: 'Enable two-factor authentication, use strong passwords, and never share your login credentials. We also recommend reviewing your login history regularly.',
+    id: "faq-006",
+    icon: "security",
+    question: "Account security best practices",
+    answer:
+      "Enable two-factor authentication, use strong passwords, and never share your login credentials. We also recommend reviewing your login history regularly.",
   },
   {
-    id: 'faq-007',
-    icon: 'edit-note',
-    question: 'How to update personal information',
-    answer: 'Go to Profile > Edit Account Details to update your name, email, phone number, and profile picture. Changes are reflected immediately.',
+    id: "faq-007",
+    icon: "edit-note",
+    question: "How to update personal information",
+    answer:
+      "Go to Profile > Edit Account Details to update your name, email, phone number, and profile picture. Changes are reflected immediately.",
   },
 ];
 
@@ -611,17 +680,17 @@ export const faqData: FAQ[] = [
 
 // Source of funds options for contributions
 export const sourceOfFundsOptions = [
-  { id: 'payroll', label: 'Payroll Deduction', icon: 'work' },
-  { id: 'bank', label: 'Bank Transfer', icon: 'account-balance' },
-  { id: 'wallet', label: 'Digital Wallet', icon: 'wallet' },
-  { id: 'cash', label: 'Cash Deposit', icon: 'payments' },
+  { id: "payroll", label: "Payroll Deduction", icon: "work" },
+  { id: "bank", label: "Bank Transfer", icon: "account-balance" },
+  { id: "wallet", label: "Digital Wallet", icon: "wallet" },
+  { id: "cash", label: "Cash Deposit", icon: "payments" },
 ];
 
 // Contribution types
 export const contributionTypes = [
-  { id: 'regular', label: 'Regular Savings', icon: 'savings' },
-  { id: 'emergency', label: 'Emergency Fund', icon: 'emergency' },
-  { id: 'target', label: 'Target Savings', icon: 'flag' },
+  { id: "regular", label: "Regular Savings", icon: "savings" },
+  { id: "emergency", label: "Emergency Fund", icon: "emergency" },
+  { id: "target", label: "Target Savings", icon: "flag" },
 ];
 
 // Minimum contribution amount (in Naira)
@@ -646,10 +715,16 @@ export const getContributionMonths = () => {
   const months = [];
   const now = new Date();
   for (let i = 0; i < 12; i++) {
-    const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const year = now.getFullYear();
+    const monthIndex = now.getMonth() + i;
+    // Calculate year and month correctly handling overflow
+    const adjustedYear = year + Math.floor(monthIndex / 12);
+    const adjustedMonth = (monthIndex % 12) + 1;
+    const monthStr = `${adjustedYear}-${adjustedMonth.toString().padStart(2, "0")}`;
+    const date = new Date(adjustedYear, adjustedMonth - 1, 1);
     months.push({
-      value: date.toISOString().slice(0, 7), // YYYY-MM
-      label: date.toLocaleDateString('en-NG', { month: 'long', year: 'numeric' }),
+      value: monthStr,
+      label: date.toLocaleDateString("en-NG", { month: "long", year: "numeric" }),
     });
   }
   return months;
@@ -666,7 +741,12 @@ export const generateTransactionId = (): string => {
 // NOTIFICATION DATA
 // ============================================
 
-export type NotificationType = 'loan' | 'contribution' | 'dividend' | 'security' | 'meeting';
+export type NotificationType =
+  | "loan"
+  | "contribution"
+  | "dividend"
+  | "security"
+  | "meeting";
 
 export interface NotificationAction {
   label: string;
@@ -686,54 +766,54 @@ export interface Notification {
 // Get icon for notification type
 export const getNotificationIcon = (type: NotificationType): string => {
   switch (type) {
-    case 'loan':
-      return 'account-balance-wallet';
-    case 'contribution':
-      return 'calendar-month';
-    case 'dividend':
-      return 'campaign';
-    case 'security':
-      return 'security';
-    case 'meeting':
-      return 'groups';
+    case "loan":
+      return "account-balance-wallet";
+    case "contribution":
+      return "calendar-month";
+    case "dividend":
+      return "campaign";
+    case "security":
+      return "security";
+    case "meeting":
+      return "groups";
     default:
-      return 'notifications';
+      return "notifications";
   }
 };
 
 // Get icon background color for notification type
 export const getNotificationIconBg = (type: NotificationType): string => {
   switch (type) {
-    case 'loan':
-      return '#eff6ff'; // blue-50
-    case 'contribution':
-      return '#fff7ed'; // orange-50
-    case 'dividend':
-      return '#f1f5f9'; // slate-100
-    case 'security':
-      return '#fee2e2'; // red-100
-    case 'meeting':
-      return '#eff6ff'; // blue-50 with opacity
+    case "loan":
+      return "#eff6ff"; // blue-50
+    case "contribution":
+      return "#fff7ed"; // orange-50
+    case "dividend":
+      return "#f1f5f9"; // slate-100
+    case "security":
+      return "#fee2e2"; // red-100
+    case "meeting":
+      return "#eff6ff"; // blue-50 with opacity
     default:
-      return '#f1f5f9';
+      return "#f1f5f9";
   }
 };
 
 // Get icon color for notification type
 export const getNotificationIconColor = (type: NotificationType): string => {
   switch (type) {
-    case 'loan':
-      return '#0b50da';
-    case 'contribution':
-      return '#ea580c';
-    case 'dividend':
-      return '#64748b';
-    case 'security':
-      return '#ef4444';
-    case 'meeting':
-      return '#0b50da';
+    case "loan":
+      return "#0b50da";
+    case "contribution":
+      return "#ea580c";
+    case "dividend":
+      return "#64748b";
+    case "security":
+      return "#ef4444";
+    case "meeting":
+      return "#0b50da";
     default:
-      return '#64748b';
+      return "#64748b";
   }
 };
 
@@ -750,55 +830,59 @@ export const getRelativeTime = (date: Date): string => {
   } else if (diffHours < 24) {
     return `${diffHours}h ago`;
   } else if (diffDays === 1) {
-    return 'Yesterday';
+    return "Yesterday";
   } else {
-    return date.toLocaleDateString('en-NG', { month: 'short', day: 'numeric' });
+    return date.toLocaleDateString("en-NG", { month: "short", day: "numeric" });
   }
 };
 
 // Mock notifications data
 export const mockNotifications: Notification[] = [
   {
-    id: 'notif-001',
-    type: 'loan',
-    title: 'Loan approved',
-    message: 'Your Business Expansion Loan application (Ref: DOM-8821) has been successfully approved.',
+    id: "notif-001",
+    type: "loan",
+    title: "Loan approved",
+    message:
+      "Your Business Expansion Loan application (Ref: DOM-8821) has been successfully approved.",
     timestamp: new Date(Date.now() - 15 * 60000), // 15 minutes ago
     isRead: false,
     action: {
-      label: 'View Details',
-      route: '/loans/loan-004',
+      label: "View Details",
+      route: "/loans/loan-004",
     },
   },
   {
-    id: 'notif-002',
-    type: 'contribution',
-    title: 'Monthly contribution due',
-    message: 'Friendly reminder: Your monthly contribution of ₦50,000 is due tomorrow.',
+    id: "notif-002",
+    type: "contribution",
+    title: "Monthly contribution due",
+    message: "Friendly reminder: Your monthly contribution of ₦50,000 is due tomorrow.",
     timestamp: new Date(Date.now() - 2 * 3600000), // 2 hours ago
     isRead: false,
   },
   {
-    id: 'notif-003',
-    type: 'dividend',
-    title: 'New dividend payout announced',
-    message: 'The board has announced a 12% dividend for the Q3 fiscal period. Check your portal for statements.',
+    id: "notif-003",
+    type: "dividend",
+    title: "New dividend payout announced",
+    message:
+      "The board has announced a 12% dividend for the Q3 fiscal period. Check your portal for statements.",
     timestamp: new Date(Date.now() - 24 * 3600000), // Yesterday
     isRead: true,
   },
   {
-    id: 'notif-004',
-    type: 'security',
-    title: 'Security login alert',
-    message: 'A new login was detected on a Linux device in Lagos, Nigeria. Was this you?',
+    id: "notif-004",
+    type: "security",
+    title: "Security login alert",
+    message:
+      "A new login was detected on a Linux device in Lagos, Nigeria. Was this you?",
     timestamp: new Date(Date.now() - 7 * 24 * 3600000), // 7 days ago
     isRead: true,
   },
   {
-    id: 'notif-005',
-    type: 'meeting',
-    title: 'Annual General Meeting',
-    message: 'The minutes from the last AGM are now available for download in the resource center.',
+    id: "notif-005",
+    type: "meeting",
+    title: "Annual General Meeting",
+    message:
+      "The minutes from the last AGM are now available for download in the resource center.",
     timestamp: new Date(Date.now() - 9 * 24 * 3600000), // 9 days ago
     isRead: true,
   },
@@ -806,5 +890,5 @@ export const mockNotifications: Notification[] = [
 
 // Get unread count
 export const getUnreadNotificationsCount = (): number => {
-  return mockNotifications.filter(n => !n.isRead).length;
+  return mockNotifications.filter((n) => !n.isRead).length;
 };

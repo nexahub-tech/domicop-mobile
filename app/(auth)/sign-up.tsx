@@ -6,7 +6,6 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -18,9 +17,11 @@ import { FormCard } from "@/components/auth/FormCard";
 import { PasswordStrength } from "@/components/auth/PasswordStrength";
 import { DropdownSelect } from "@/components/forms/DropdownSelect";
 import { ProfileImagePicker } from "@/components/forms/ProfileImagePicker";
+import { InfoModal } from "@/components/modals/InfoModal";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { lightColors } from "@/contexts/ThemeContext";
 import type { SignUpData, SignUpErrors, SignUpStep } from "@/types";
+import { signUp } from "@/lib/api/sign-up.api";
 import { theme } from "@/styles/theme";
 
 // Nigerian Banks with their codes
@@ -63,6 +64,7 @@ export default function SignUpScreen() {
   const [currentStep, setCurrentStep] = useState<SignUpStep>(1);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<SignUpErrors>({});
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
 
   const [formData, setFormData] = useState<SignUpData>({
     email: "",
@@ -176,46 +178,22 @@ export default function SignUpScreen() {
     setIsLoading(true);
     setErrors({});
 
-    // Log all form fields when Create Account is clicked
-    console.log("========================================");
-    console.log("[SignUp] CREATE ACCOUNT BUTTON CLICKED");
-    console.log("========================================");
-    console.log("[SignUp] Email:", formData.email);
-    console.log("[SignUp] Password:", "*".repeat(formData.password.length));
-    console.log("[SignUp] Full Name:", formData.full_name);
-    console.log("[SignUp] Phone:", formData.phone);
-    console.log("[SignUp] Address:", formData.address);
-    console.log("[SignUp] Bank Name:", formData.bank_name);
-    console.log("[SignUp] Bank Account:", formData.bank_account);
-    console.log("[SignUp] Bank Code:", formData.bank_code);
-    console.log("[SignUp] Avatar URL:", formData.avatar_url || "(not provided)");
-    console.log("[SignUp] Next of Kin:", formData.next_of_kin || "(not provided)");
-    console.log("========================================");
-    console.log("[SignUp] Complete form data object:", JSON.stringify(formData, null, 2));
-    console.log("========================================");
-
     try {
-      // Mock API call - replace with actual API when ready
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // Simulate successful registration
-      Alert.alert(
-        "Registration Successful",
-        "Your account has been created successfully! Please check your email to verify your account.",
-        [
-          {
-            text: "OK",
-            onPress: () => router.replace("/sign-in"),
-          },
-        ],
-      );
-    } catch {
+      await signUp.register(formData);
+      setShowVerificationModal(true);
+    } catch (error) {
       setErrors({
-        general: "Registration failed. Please try again.",
+        general: error instanceof Error ? error.message : "Registration failed. Please try again.",
       });
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Handle verification modal close
+  const handleVerificationModalClose = () => {
+    setShowVerificationModal(false);
+    router.replace("/sign-in");
   };
 
   // Handle image selection
@@ -531,6 +509,17 @@ export default function SignUpScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Email Verification Modal */}
+      <InfoModal
+        visible={showVerificationModal}
+        onClose={handleVerificationModalClose}
+        icon="email"
+        title="Verify Your Email"
+        message="Your account has been created. Please check your email (including spam folder) and click the verification link to activate your account."
+        primaryButtonText="Go to Sign In"
+        onPrimaryPress={handleVerificationModalClose}
+      />
     </View>
   );
 }

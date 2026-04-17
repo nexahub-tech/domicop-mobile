@@ -8,9 +8,10 @@ import { HeroSection } from "@/components/auth/HeroSection";
 import { BackButton } from "@/components/auth/BackButton";
 import { SecurityBadge } from "@/components/auth/SecurityBadge";
 import { FormCard } from "@/components/auth/FormCard";
-import { Checkbox } from "@/components/forms/Checkbox";
 import { KeyboardAwareWrapper } from "@/components/auth/KeyboardAwareWrapper";
+import { InfoModal } from "@/components/modals/InfoModal";
 import { useTheme } from "@/contexts/ThemeContext";
+import { signUp } from "@/lib/api/sign-up.api";
 import type { lightColors } from "@/contexts/ThemeContext";
 import { theme } from "@/styles/theme";
 
@@ -21,11 +22,37 @@ export default function SignInScreen() {
   const styles = createStyles(colors);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | undefined>(undefined);
+  const [showUnverifiedModal, setShowUnverifiedModal] = useState(false);
 
-  const handleSignIn = () => {
-    // Navigate to home dashboard
-    router.replace("/(tabs)");
+  const isEmailUnverified = (message: string): boolean => {
+    const lowerMessage = message.toLowerCase();
+    return (
+      lowerMessage.includes("email") &&
+      (lowerMessage.includes("not verified") ||
+        lowerMessage.includes("verify") ||
+        lowerMessage.includes("confirmed"))
+    );
+  };
+
+  const handleSignIn = async () => {
+    setError(undefined);
+    setIsLoading(true);
+
+    try {
+      await signUp.login(email, password);
+      router.replace("/(tabs)");
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Login failed. Please try again.";
+      if (isEmailUnverified(errorMessage)) {
+        setShowUnverifiedModal(true);
+      } else {
+        setError(errorMessage);
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleForgotPassword = () => {
@@ -81,19 +108,16 @@ export default function SignInScreen() {
                 label="Password"
                 placeholder="••••••••"
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  if (error) setError(undefined);
+                }}
                 secureTextEntry
+                error={error}
               />
 
-              {/* Remember Me & Forgot Password */}
-              <View style={styles.rememberForgot}>
-                <Checkbox
-                  checked={rememberMe}
-                  onChange={setRememberMe}
-                  label="Remember me"
-                  labelStyle={styles.rememberMeText}
-                />
-
+              {/* Forgot Password */}
+              <View style={styles.forgotContainer}>
                 <TouchableOpacity onPress={handleForgotPassword}>
                   <Text style={styles.forgotPassword}>Forgot Password?</Text>
                 </TouchableOpacity>
@@ -107,6 +131,8 @@ export default function SignInScreen() {
                 size="lg"
                 fullWidth
                 icon="arrow.right"
+                loading={isLoading}
+                disabled={isLoading}
               />
             </FormCard>
 
@@ -123,6 +149,20 @@ export default function SignInScreen() {
           </View>
         </ScrollView>
       </KeyboardAwareWrapper>
+
+      {/* Unverified Email Modal */}
+      <InfoModal
+        visible={showUnverifiedModal}
+        onClose={() => setShowUnverifiedModal(false)}
+        icon="email"
+        title="Email Not Verified"
+        message="Please verify your email address before signing in. Check your inbox (and spam folder) for the verification link."
+        primaryButtonText="Resend Verification"
+        onPrimaryPress={() => {
+          setShowUnverifiedModal(false);
+          router.push({ pathname: "/forgot-password", params: { email } });
+        }}
+      />
     </View>
   );
 }
@@ -180,6 +220,10 @@ const createStyles = (colors: typeof lightColors) =>
       color: colors.primary,
       textTransform: "uppercase",
       letterSpacing: theme.typography.letterSpacing.wider,
+    },
+    forgotContainer: {
+      alignItems: "flex-end",
+      marginTop: -theme.spacing.sm,
     },
     footer: {
       marginTop: theme.spacing.xl,
