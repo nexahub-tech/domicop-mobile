@@ -27,7 +27,8 @@ export default {
       },
     },
     android: {
-      versionCode: 6,
+      // versionCode/buildNumber are managed by EAS remote versioning
+      // (eas.json cli.appVersionSource = "remote"); do not set them here.
       adaptiveIcon: {
         backgroundColor: "#E6F4FE",
         foregroundImage: "./assets/images/android-icon-foreground.png",

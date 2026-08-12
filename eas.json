@@ -1,7 +1,7 @@
 {
   "cli": {
     "version": ">= 18.4.0",
-    "appVersionSource": "local"
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
@@ -13,14 +13,20 @@
       }
     },
     "production": {
+      "autoIncrement": true,
+      "environment": "production",
       "env": {
         "APP_ENV": "production"
+      },
+      "android": {
+        "buildType": "app-bundle"
       }
     },
     "preview": {
       "extends": "production",
       "distribution": "internal",
       "environment": "development",
+      "autoIncrement": false,
       "android": {
         "buildType": "app-bundle"
       },
@@ -30,6 +36,12 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "track": "internal",
+        "releaseStatus": "completed"
+      },
+      "ios": {}
+    }
   }
 }
