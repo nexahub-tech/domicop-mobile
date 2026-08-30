@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,87 +11,203 @@ import {
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTheme, lightColors } from '@/contexts/ThemeContext';
 import { theme } from '@/styles/theme';
 import { typography } from '@/constants/typography';
-import { createElevation } from '@/constants/theme';
 import { ScreenHeader } from '@/components/common/ScreenHeader';
 import { Button } from '@/components/common/Button';
 import { AmountInput } from '@/components/forms/AmountInput';
 import { PurposeSelector } from '@/components/forms/PurposeSelector';
 import { TermSlider } from '@/components/forms/TermSlider';
 import { LoanCalculator } from '@/components/forms/LoanCalculator';
+import { SignaturePad } from '@/components/forms/SignaturePad';
 import { Input } from '@/components/common/Input';
 import { SuccessModal } from '@/components/modals/SuccessModal/index';
 import { InfoModal } from '@/components/modals/InfoModal';
-import { loanConfig, calculateLoan } from '@/constants/loans';
+import { loanConfig, calculateLoan, buildSchedulePreview } from '@/constants/loans';
 import { loansApi, LoanApplicationRejection } from '@/lib/api/loans.api';
+import type { LoanGuarantorInput } from '@/lib/api/loans.api';
+import { members } from '@/lib/api/members.api';
 import type { LoanType, InsufficientContributionsError, ActiveLoanExistsError } from '@/lib/types/loans';
-import { parseNairaInput, toApiAmount } from '@/lib/utils/currency';
+import { parseNairaInput, toApiAmount, formatNaira } from '@/lib/utils/currency';
 
 const MIN_PURPOSE_LENGTH = 10;
+
+/**
+ * 1 amount & purpose · 2 applicant (Part A) · 3 terms & schedule (Part A item 8)
+ * · 4 guarantors (Part B) · 5 review & sign (Part A item 9)
+ */
+type Step = 1 | 2 | 3 | 4 | 5;
+const TOTAL_STEPS = 5;
+
+const emptyGuarantor = (): LoanGuarantorInput => ({
+  full_name: '',
+  bank_name: '',
+  bank_account: '',
+  phone: '',
+  signature: '',
+});
 
 export default function ApplyForLoanScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { colors, isDarkMode } = useTheme();
   const styles = getStyles(colors);
-  const elevations = createElevation(colors);
 
-  // Form state
+  const [step, setStep] = useState<Step>(1);
+
+  // Step 1 — amount & purpose
   const [amount, setAmount] = useState('');
   const [type, setType] = useState<LoanType | null>(null);
   const [purpose, setPurpose] = useState('');
-  const [term, setTerm] = useState(12);
+
+  // Step 2 — Part A applicant details. Prefilled from the profile but editable,
+  // because the server stores them as a snapshot on the bond.
+  const [address, setAddress] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [bankAccount, setBankAccount] = useState('');
+  const [phone, setPhone] = useState('');
+
+  // Step 3 — terms
+  const [term, setTerm] = useState(loanConfig.maxTerm);
   const [interestRate, setInterestRate] = useState(loanConfig.defaultInterestRate);
+
+  // Step 4 — Part B
+  const [guarantors, setGuarantors] = useState<LoanGuarantorInput[]>([
+    emptyGuarantor(),
+    emptyGuarantor(),
+    emptyGuarantor(),
+  ]);
+
+  // Step 5 — Part A item 9
+  const [borrowerSignature, setBorrowerSignature] = useState('');
+
   const [showSuccess, setShowSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errors, setErrors] = useState<{
-    amount?: string;
-    type?: string;
-    purpose?: string;
-  }>({});
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [eligibilityError, setEligibilityError] =
     useState<InsufficientContributionsError | null>(null);
   const [activeLoanError, setActiveLoanError] =
     useState<ActiveLoanExistsError | null>(null);
 
-  // Calculate loan details
+  // Seed Part A from the member's profile so they confirm rather than retype.
+  useEffect(() => {
+    let cancelled = false;
+    members
+      .getProfile()
+      .then((p) => {
+        if (cancelled) return;
+        setAddress((v) => v || p.address || '');
+        setBankName((v) => v || p.bank_name || '');
+        setBankAccount((v) => v || p.bank_account || '');
+        setPhone((v) => v || p.phone || '');
+      })
+      .catch(() => {
+        // Prefill is a convenience; the fields stay editable either way.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const loanDetails = useMemo(() => {
     const numericAmount = parseNairaInput(amount) || 0;
     return calculateLoan(numericAmount, term, interestRate);
   }, [amount, term, interestRate]);
 
-  // Validation
-  const validateForm = useCallback(() => {
-    const newErrors: { amount?: string; type?: string; purpose?: string } = {};
+  const schedule = useMemo(() => {
     const numericAmount = parseNairaInput(amount) || 0;
+    if (numericAmount <= 0) return [];
+    return buildSchedulePreview(numericAmount, term, interestRate);
+  }, [amount, term, interestRate]);
 
-    if (!amount || numericAmount < loanConfig.minAmount) {
-      newErrors.amount = `Minimum loan amount is ₦${loanConfig.minAmount.toLocaleString()}`;
-    } else if (numericAmount > loanConfig.maxAmount) {
-      newErrors.amount = `Maximum loan amount is ₦${loanConfig.maxAmount.toLocaleString()}`;
+  const setGuarantor = useCallback(
+    (index: number, patch: Partial<LoanGuarantorInput>) => {
+      setGuarantors((prev) =>
+        prev.map((g, i) => (i === index ? { ...g, ...patch } : g)),
+      );
+      setErrors((e) => ({ ...e, [`guarantor_${index}`]: undefined }));
+    },
+    [],
+  );
+
+  const validateStep = useCallback(
+    (target: Step): boolean => {
+      const next: Record<string, string | undefined> = {};
+      const numericAmount = parseNairaInput(amount) || 0;
+
+      if (target === 1) {
+        if (!amount || numericAmount < loanConfig.minAmount) {
+          next.amount = `Minimum loan amount is ₦${loanConfig.minAmount.toLocaleString()}`;
+        } else if (numericAmount > loanConfig.maxAmount) {
+          next.amount = `Maximum loan amount is ₦${loanConfig.maxAmount.toLocaleString()}`;
+        }
+        if (!type) next.type = 'Please select a loan type';
+        if (purpose.trim().length < MIN_PURPOSE_LENGTH) {
+          next.purpose = `Please describe your purpose (at least ${MIN_PURPOSE_LENGTH} characters)`;
+        }
+      }
+
+      if (target === 2) {
+        if (address.trim().length < 5) next.address = 'Your address is required';
+        if (bankName.trim().length < 2) next.bank_name = 'Your bank is required';
+        if (bankAccount.trim().length < 10) {
+          next.bank_account = 'Enter a valid 10-digit account number';
+        }
+        if (phone.trim().length < 7) next.phone = 'A phone number is required';
+      }
+
+      if (target === 3 && loanDetails.installments < 1) {
+        next.term = `A ${term}-month term is all grace and leaves no installments`;
+      }
+
+      if (target === 4) {
+        guarantors.forEach((g, i) => {
+          if (
+            g.full_name.trim().length < 2 ||
+            g.bank_name.trim().length < 2 ||
+            g.bank_account.trim().length < 10 ||
+            g.phone.trim().length < 7
+          ) {
+            next[`guarantor_${i}`] = 'All fields are required for this guarantor';
+          } else if (!g.signature) {
+            next[`guarantor_${i}`] = 'This guarantor still needs to sign';
+          }
+        });
+      }
+
+      if (target === 5 && !borrowerSignature) {
+        next.borrower_signature = 'Please sign to submit your application';
+      }
+
+      setErrors(next);
+      return Object.keys(next).length === 0;
+    },
+    [
+      amount, type, purpose, address, bankName, bankAccount, phone,
+      guarantors, borrowerSignature, loanDetails.installments, term,
+    ],
+  );
+
+  const handleNext = () => {
+    if (!validateStep(step)) return;
+    if (step < TOTAL_STEPS) setStep((s) => (s + 1) as Step);
+  };
+
+  const handleBack = () => {
+    if (step > 1) {
+      setErrors({});
+      setStep((s) => (s - 1) as Step);
+      return;
     }
+    router.back();
+  };
 
-    if (!type) {
-      newErrors.type = 'Please select a loan type';
-    }
-
-    if (purpose.trim().length < MIN_PURPOSE_LENGTH) {
-      newErrors.purpose = `Please describe your purpose (at least ${MIN_PURPOSE_LENGTH} characters)`;
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  }, [amount, type, purpose]);
-
-  // Handle submission
   const handleSubmit = async () => {
-    if (!validateForm() || !type) return;
+    if (!validateStep(5) || !type) return;
 
     setIsSubmitting(true);
     try {
@@ -102,8 +218,19 @@ export default function ApplyForLoanScreen() {
         purpose: purpose.trim(),
         type,
         tenure_months: term,
+        applicant_address: address.trim(),
+        applicant_bank_name: bankName.trim(),
+        applicant_bank_account: bankAccount.trim(),
+        applicant_phone: phone.trim(),
+        borrower_signature: borrowerSignature,
+        guarantors: guarantors.map((g) => ({
+          full_name: g.full_name.trim(),
+          bank_name: g.bank_name.trim(),
+          bank_account: g.bank_account.trim(),
+          phone: g.phone.trim(),
+          signature: g.signature,
+        })),
       });
-      // Refresh the loans list so the new pending application shows up.
       queryClient.invalidateQueries({ queryKey: ['loans'] });
       setShowSuccess(true);
     } catch (err) {
@@ -125,26 +252,18 @@ export default function ApplyForLoanScreen() {
     }
   };
 
-  // Handle success modal close
   const handleSuccessClose = () => {
     setShowSuccess(false);
     router.replace('/(tabs)/loans');
   };
 
-  // Dismiss eligibility error
-  const handleDismissEligibilityError = () => {
-    setEligibilityError(null);
-  };
-
-  // Dismiss active loan error
-  const handleDismissActiveLoanError = () => {
-    setActiveLoanError(null);
-  };
-
-  // Navigate back
-  const handleBack = () => {
-    router.back();
-  };
+  const stepTitle = [
+    'How much, and what for?',
+    'Your details',
+    'Terms & repayment plan',
+    'Your three guarantors',
+    'Review & sign',
+  ][step - 1];
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -162,134 +281,249 @@ export default function ApplyForLoanScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Hero Card */}
-          <Animated.View
-            entering={FadeInUp.delay(100).duration(400)}
-            style={[styles.heroCard, elevations.raised]}
-          >
-            <View style={styles.heroContent}>
-              <Text style={styles.heroSubtitle}>DOMICOOP Cooperative</Text>
-              <Text style={styles.heroTitle}>Apply for a Loan</Text>
-              <Text style={styles.heroDescription}>
-                Complete the form below to submit your request. Most decisions
-                are made within 24 hours.
-              </Text>
-            </View>
-            <View style={styles.watermarkContainer}>
-              <MaterialIcons
-                name="account-balance"
-                size={120}
-                color={`${colors.onPrimary}1A`}
+          {/* Progress */}
+          <View style={styles.stepRow}>
+            {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((n) => (
+              <View
+                key={n}
+                style={[
+                  styles.stepBar,
+                  n <= step ? styles.stepBarActive : undefined,
+                ]}
               />
-            </View>
-          </Animated.View>
+            ))}
+          </View>
+          <Text style={styles.stepLabel}>
+            Step {step} of {TOTAL_STEPS} · {stepTitle}
+          </Text>
 
-          {/* Form */}
           <View style={styles.formContainer}>
-            {/* Amount Input */}
-            <Animated.View entering={FadeInUp.delay(200).duration(400)}>
-              <AmountInput
-                value={amount}
-                onChangeText={setAmount}
-                error={errors.amount}
-              />
-            </Animated.View>
-
-            {/* Loan Type */}
-            <Animated.View entering={FadeInUp.delay(300).duration(400)}>
-              <PurposeSelector
-                selectedType={type}
-                onSelectType={(next) => {
-                  setType(next);
-                  if (errors.type) setErrors((e) => ({ ...e, type: undefined }));
-                }}
-              />
-              {errors.type && <Text style={styles.errorText}>{errors.type}</Text>}
-            </Animated.View>
-
-            {/* Purpose Description */}
-            <Animated.View entering={FadeInUp.delay(350).duration(400)}>
-              <Input
-                label="Purpose"
-                placeholder="Briefly describe what this loan is for…"
-                value={purpose}
-                onChangeText={(text) => {
-                  setPurpose(text);
-                  if (errors.purpose) setErrors((e) => ({ ...e, purpose: undefined }));
-                }}
-                multiline
-                numberOfLines={3}
-                error={errors.purpose}
-              />
-            </Animated.View>
-
-            {/* Term Slider */}
-            <Animated.View entering={FadeInUp.delay(400).duration(400)}>
-              <TermSlider value={term} onValueChange={setTerm} />
-            </Animated.View>
-
-            {/* Loan Calculator */}
-            <Animated.View entering={FadeInUp.delay(500).duration(400)}>
-              <LoanCalculator
-                monthlyPayment={loanDetails.monthlyPayment}
-                totalRepayment={loanDetails.totalRepayment}
-                totalInterest={loanDetails.totalInterest}
-                interestRate={interestRate}
-                onInterestRateChange={setInterestRate}
-              />
-            </Animated.View>
-
-            {/* Submit Button */}
-            <Animated.View entering={FadeInUp.delay(600).duration(400)}>
-              {isSubmitting ? (
-                <View style={[styles.submitButton, styles.submitButtonDisabled]}>
-                  <ActivityIndicator color={colors.onPrimary} />
-                </View>
-              ) : (
-                <Button
-                  title="Apply for Loan"
-                  onPress={handleSubmit}
-                  variant="primary"
-                  size="lg"
-                  icon="send"
-                  iconPosition="left"
-                  fullWidth
+            {step === 1 && (
+              <Animated.View entering={FadeInUp.duration(300)} style={styles.stepContent}>
+                <AmountInput value={amount} onChangeText={setAmount} error={errors.amount} />
+                <PurposeSelector
+                  selectedType={type}
+                  onSelectType={(next) => {
+                    setType(next);
+                    setErrors((e) => ({ ...e, type: undefined }));
+                  }}
                 />
+                {errors.type && <Text style={styles.errorText}>{errors.type}</Text>}
+                <Input
+                  label="Purpose"
+                  placeholder="Briefly describe what this loan is for…"
+                  value={purpose}
+                  onChangeText={(t) => {
+                    setPurpose(t);
+                    setErrors((e) => ({ ...e, purpose: undefined }));
+                  }}
+                  multiline
+                  numberOfLines={3}
+                  error={errors.purpose}
+                />
+              </Animated.View>
+            )}
+
+            {step === 2 && (
+              <Animated.View entering={FadeInUp.duration(300)} style={styles.stepContent}>
+                <Text style={styles.stepHelp}>
+                  These are recorded on your loan bond exactly as entered, so check
+                  them even though we have filled them in from your profile.
+                </Text>
+                <Input
+                  label="Business / Home Address"
+                  placeholder="Your address"
+                  value={address}
+                  onChangeText={setAddress}
+                  multiline
+                  numberOfLines={2}
+                  error={errors.address}
+                />
+                <Input
+                  label="Bank Used"
+                  placeholder="e.g. First Bank of Nigeria"
+                  value={bankName}
+                  onChangeText={setBankName}
+                  error={errors.bank_name}
+                />
+                <Input
+                  label="Account Number"
+                  placeholder="1234567890"
+                  value={bankAccount}
+                  onChangeText={setBankAccount}
+                  keyboardType="numeric"
+                  error={errors.bank_account}
+                />
+                <Input
+                  label="Phone Number"
+                  placeholder="+234 123 456 7890"
+                  value={phone}
+                  onChangeText={setPhone}
+                  keyboardType="phone-pad"
+                  error={errors.phone}
+                />
+              </Animated.View>
+            )}
+
+            {step === 3 && (
+              <Animated.View entering={FadeInUp.duration(300)} style={styles.stepContent}>
+                <TermSlider value={term} onValueChange={setTerm} />
+                {errors.term && <Text style={styles.errorText}>{errors.term}</Text>}
+                <LoanCalculator
+                  monthlyPayment={loanDetails.monthlyPayment}
+                  totalRepayment={loanDetails.totalRepayment}
+                  totalInterest={loanDetails.totalInterest}
+                  interestRate={interestRate}
+                  onInterestRateChange={setInterestRate}
+                />
+                <View style={styles.scheduleCard}>
+                  <Text style={styles.scheduleTitle}>
+                    {loanDetails.graceMonths} month grace, then{' '}
+                    {loanDetails.installments} payments
+                  </Text>
+                  <Text style={styles.stepHelp}>
+                    Nothing is due in the first month after your loan is paid out.
+                    These dates are indicative until the cooperative approves the loan.
+                  </Text>
+                  {schedule.map((row) => (
+                    <View key={row.installment_no} style={styles.scheduleRow}>
+                      <Text style={styles.scheduleMonth}>
+                        {row.installment_no}.{' '}
+                        {row.due_on.toLocaleDateString(undefined, {
+                          month: 'long',
+                          year: 'numeric',
+                        })}
+                      </Text>
+                      <Text style={styles.scheduleAmount}>
+                        {formatNaira(row.amount)}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </Animated.View>
+            )}
+
+            {step === 4 && (
+              <Animated.View entering={FadeInUp.duration(300)} style={styles.stepContent}>
+                <Text style={styles.stepHelp}>
+                  The cooperative requires three guarantors. Each one signs here,
+                  on this device, exactly as they would on the paper form.
+                </Text>
+                {guarantors.map((g, i) => (
+                  <View key={i} style={styles.guarantorCard}>
+                    <Text style={styles.guarantorTitle}>Guarantor {i + 1}</Text>
+                    <Input
+                      label="Full Name"
+                      placeholder="Their full name"
+                      value={g.full_name}
+                      onChangeText={(v) => setGuarantor(i, { full_name: v })}
+                      autoCapitalize="words"
+                    />
+                    <Input
+                      label="Name of Bank"
+                      placeholder="e.g. Zenith Bank"
+                      value={g.bank_name}
+                      onChangeText={(v) => setGuarantor(i, { bank_name: v })}
+                    />
+                    <Input
+                      label="Account Number"
+                      placeholder="1234567890"
+                      value={g.bank_account}
+                      onChangeText={(v) => setGuarantor(i, { bank_account: v })}
+                      keyboardType="numeric"
+                    />
+                    <Input
+                      label="Phone Number"
+                      placeholder="+234 123 456 7890"
+                      value={g.phone}
+                      onChangeText={(v) => setGuarantor(i, { phone: v })}
+                      keyboardType="phone-pad"
+                    />
+                    <SignaturePad
+                      label={`Guarantor ${i + 1} Signature`}
+                      value={g.signature || null}
+                      onChange={(sig) => setGuarantor(i, { signature: sig ?? '' })}
+                    />
+                    {errors[`guarantor_${i}`] && (
+                      <Text style={styles.errorText}>{errors[`guarantor_${i}`]}</Text>
+                    )}
+                  </View>
+                ))}
+              </Animated.View>
+            )}
+
+            {step === 5 && (
+              <Animated.View entering={FadeInUp.duration(300)} style={styles.stepContent}>
+                <View style={styles.reviewCard}>
+                  <ReviewRow styles={styles} label="Amount requested" value={formatNaira(parseNairaInput(amount) || 0)} />
+                  <ReviewRow styles={styles} label="Purpose" value={purpose.trim()} />
+                  <ReviewRow styles={styles} label="Term" value={`${term} months (${loanDetails.graceMonths} grace + ${loanDetails.installments} payments)`} />
+                  <ReviewRow styles={styles} label="Each payment" value={formatNaira(loanDetails.monthlyPayment)} />
+                  <ReviewRow styles={styles} label="Total repayable" value={formatNaira(loanDetails.totalRepayment)} />
+                  <ReviewRow styles={styles} label="Address" value={address.trim()} />
+                  <ReviewRow styles={styles} label="Bank" value={`${bankName.trim()} · ${bankAccount.trim()}`} />
+                  <ReviewRow styles={styles} label="Guarantors" value={guarantors.map((g) => g.full_name.trim()).join(', ')} />
+                </View>
+
+                <Text style={styles.stepHelp}>
+                  By signing you agree to use this loan solely for the purpose
+                  stated above and to repay it in {loanDetails.installments} equal
+                  installments. The amount in words is written onto your loan bond
+                  from the figure above.
+                </Text>
+
+                <SignaturePad
+                  label="Your Signature"
+                  value={borrowerSignature || null}
+                  onChange={(sig) => {
+                    setBorrowerSignature(sig ?? '');
+                    setErrors((e) => ({ ...e, borrower_signature: undefined }));
+                  }}
+                  error={errors.borrower_signature}
+                />
+              </Animated.View>
+            )}
+
+            {/* Navigation */}
+            <View style={styles.navRow}>
+              {step > 1 && (
+                <View style={styles.navButton}>
+                  <Button title="Back" onPress={handleBack} variant="tonal" size="lg" fullWidth />
+                </View>
               )}
-            </Animated.View>
+              <View style={styles.navButton}>
+                {step < TOTAL_STEPS ? (
+                  <Button title="Continue" onPress={handleNext} variant="primary" size="lg" fullWidth />
+                ) : isSubmitting ? (
+                  <View style={[styles.submitButton, styles.submitButtonDisabled]}>
+                    <ActivityIndicator color={colors.onPrimary} />
+                  </View>
+                ) : (
+                  <Button
+                    title="Submit Application"
+                    onPress={handleSubmit}
+                    variant="primary"
+                    size="lg"
+                    icon="send"
+                    iconPosition="left"
+                    fullWidth
+                  />
+                )}
+              </View>
+            </View>
           </View>
 
-          {/* Compliance Note */}
-          <Animated.View
-            entering={FadeInUp.delay(700).duration(400)}
-            style={[styles.complianceContainer, elevations.flat]}
-          >
-            <View style={styles.complianceIcon}>
-              <MaterialIcons name="verified-user" size={24} color={colors.primary} />
-            </View>
-            <View style={styles.complianceTextContainer}>
-              <Text style={styles.complianceTitle}>Fast & Secure Review</Text>
-              <Text style={styles.complianceText}>
-                Most loan decisions are made within 24 hours. By applying, you
-                agree to DOMICOOP&apos;s Terms of Service and Privacy Policy.
-              </Text>
-            </View>
-          </Animated.View>
-
-          {/* Bottom padding */}
           <View style={styles.bottomPadding} />
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Success Modal */}
       <SuccessModal
         visible={showSuccess}
         onClose={handleSuccessClose}
         title="Loan Request Submitted"
-        message="Most decisions are made within 24 hours. We'll notify you once your application is reviewed."
+        message="Your application, guarantors and signature have been received. The Secretary and President will review it."
       />
 
-      {/* Error Modal */}
       <InfoModal
         visible={submitError !== null}
         onClose={() => setSubmitError(null)}
@@ -297,37 +531,54 @@ export default function ApplyForLoanScreen() {
         iconColor={colors.error}
         title="Application Failed"
         message={submitError ?? ''}
-        primaryButtonText="Try Again"
+        primaryButtonText="Close"
+        onPrimaryPress={() => setSubmitError(null)}
       />
 
-      {/* Insufficient Contributions Modal */}
       <InfoModal
         visible={eligibilityError !== null}
-        onClose={handleDismissEligibilityError}
+        onClose={() => setEligibilityError(null)}
         icon="info"
-        iconColor={colors.error}
-        title="Not Enough Contributions"
+        iconColor={colors.warning}
+        title="Not Eligible Yet"
         message={
           eligibilityError
-            ? `You need ${eligibilityError.eligibility.short_by} more verified contribution(s) to apply for a loan. Currently ${eligibilityError.eligibility.verified_count}/${eligibilityError.eligibility.required_count} contributions verified.`
+            ? `You need ${eligibilityError.eligibility.required_count} verified contributions to apply. You have ${eligibilityError.eligibility.verified_count} — ${eligibilityError.eligibility.short_by} to go.`
             : ''
         }
-        primaryButtonText="OK"
-        onPrimaryPress={handleDismissEligibilityError}
+        primaryButtonText="Close"
+        onPrimaryPress={() => setEligibilityError(null)}
       />
 
-      {/* Active Loan Exists Error */}
       <InfoModal
         visible={activeLoanError !== null}
-        onClose={handleDismissActiveLoanError}
+        onClose={() => setActiveLoanError(null)}
         icon="info"
-        iconColor={colors.error}
-        title="Active Loan Exists"
-        message="You already have an active loan. Please repay or close it before applying for a new one."
-        primaryButtonText="OK"
-        onPrimaryPress={handleDismissActiveLoanError}
+        iconColor={colors.warning}
+        title="You Already Have a Loan"
+        message="You can only hold one active loan at a time. Please finish repaying your current loan before applying again."
+        primaryButtonText="Close"
+        onPrimaryPress={() => setActiveLoanError(null)}
       />
     </SafeAreaView>
+  );
+}
+
+/** One label/value line on the review step. */
+function ReviewRow({
+  label,
+  value,
+  styles,
+}: {
+  label: string;
+  value: string;
+  styles: ReturnType<typeof getStyles>;
+}) {
+  return (
+    <View style={styles.reviewRow}>
+      <Text style={styles.reviewLabel}>{label}</Text>
+      <Text style={styles.reviewValue}>{value || '—'}</Text>
+    </View>
   );
 }
 
@@ -434,5 +685,108 @@ const getStyles = (colors: typeof lightColors) =>
     },
     bottomPadding: {
       height: 40,
+    },
+
+    // --- Multi-step flow (Parts A, B and the signature) ---
+    stepRow: {
+      flexDirection: 'row',
+      gap: 6,
+      marginBottom: 10,
+    },
+    stepBar: {
+      flex: 1,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: colors.surfaceContainer,
+    },
+    stepBarActive: {
+      backgroundColor: colors.primary,
+    },
+    stepLabel: {
+      ...typography.styles.bodySmall,
+      fontSize: typography.size.xs,
+      color: colors.onSurfaceVariant,
+      marginBottom: 16,
+    },
+    stepContent: {
+      gap: 16,
+    },
+    stepHelp: {
+      ...typography.styles.bodySmall,
+      fontSize: typography.size.xs,
+      color: colors.onSurfaceVariant,
+      lineHeight: 18,
+    },
+    scheduleCard: {
+      backgroundColor: colors.surfaceContainerLow,
+      borderRadius: 16,
+      padding: 16,
+      gap: 8,
+    },
+    scheduleTitle: {
+      ...typography.styles.label,
+      fontSize: typography.size.sm,
+      color: colors.onSurface,
+    },
+    scheduleRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 4,
+    },
+    scheduleMonth: {
+      ...typography.styles.bodySmall,
+      fontSize: typography.size.xs,
+      color: colors.onSurfaceVariant,
+      flex: 1,
+    },
+    scheduleAmount: {
+      ...typography.styles.label,
+      fontSize: typography.size.xs,
+      color: colors.onSurface,
+    },
+    guarantorCard: {
+      backgroundColor: colors.surfaceContainerLow,
+      borderRadius: 16,
+      padding: 16,
+      gap: 12,
+    },
+    guarantorTitle: {
+      ...typography.styles.label,
+      fontSize: typography.size.sm,
+      color: colors.onSurface,
+    },
+    reviewCard: {
+      backgroundColor: colors.surfaceContainerLow,
+      borderRadius: 16,
+      padding: 16,
+      gap: 10,
+    },
+    reviewRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 12,
+    },
+    reviewLabel: {
+      ...typography.styles.bodySmall,
+      fontSize: typography.size.xs,
+      color: colors.onSurfaceVariant,
+      flex: 1,
+    },
+    reviewValue: {
+      ...typography.styles.label,
+      fontSize: typography.size.xs,
+      color: colors.onSurface,
+      flex: 1.4,
+      textAlign: 'right',
+    },
+    navRow: {
+      flexDirection: 'row',
+      gap: 12,
+      marginTop: 8,
+    },
+    navButton: {
+      flex: 1,
+      minWidth: 0,
     },
   });

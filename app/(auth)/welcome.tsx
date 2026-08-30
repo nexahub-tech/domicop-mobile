@@ -7,6 +7,7 @@ import { SecurityBadge } from "@/components/auth/SecurityBadge";
 import { HeroSection } from "@/components/auth/HeroSection";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { lightColors } from "@/contexts/ThemeContext";
+import { useRegistrationWindow } from "@/hooks/useRegistrationWindow";
 import { theme } from "@/styles/theme";
 import { font } from "@/constants/theme";
 
@@ -16,8 +17,13 @@ export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
   const styles = createStyles(colors);
 
+  const { isOpen, window: win, isLoading } = useRegistrationWindow();
+
+  // The cooperative only registers members during an intake. Route to the
+  // closed screen rather than disabling the button outright — an explanation
+  // and a next date are more useful than a dead control.
   const handleCreateAccount = () => {
-    router.push("/sign-up");
+    router.push(isOpen ? "/sign-up" : "/registration-closed");
   };
 
   const handleSignIn = () => {
@@ -48,13 +54,22 @@ export default function WelcomeScreen() {
         <View style={[styles.content, { paddingBottom: insets.bottom }]}>
           {/* Create Account — the one primary CTA */}
           <Button
-            title="Create Account"
+            title={isLoading ? "Checking registration…" : "Create Account"}
             onPress={handleCreateAccount}
             variant="primary"
             size="lg"
             fullWidth
             icon="arrow-forward"
+            disabled={isLoading}
           />
+
+          {!isLoading && (
+            <Text style={styles.registrationNote}>
+              {isOpen && win
+                ? `Registration is open until ${new Date(win.closes_at).toLocaleDateString(undefined, { day: "numeric", month: "long" })}.`
+                : "Registration for new members is currently closed."}
+            </Text>
+          )}
 
           {/* Sign In as a quiet link row */}
           <View style={styles.signInRow}>
@@ -107,6 +122,13 @@ const createStyles = (colors: typeof lightColors) =>
       maxWidth: 400,
       alignSelf: "center",
       width: "100%",
+    },
+    registrationNote: {
+      fontFamily: font("body", "regular"),
+      fontSize: theme.typography.size.sm,
+      color: colors.onSurfaceVariant,
+      textAlign: "center",
+      marginTop: theme.spacing.base,
     },
     signInRow: {
       flexDirection: "row",

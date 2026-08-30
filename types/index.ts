@@ -23,17 +23,35 @@ export interface Loan {
 // SIGN UP / REGISTRATION TYPES
 // ============================================
 
+/**
+ * The membership registration form, field-for-field with the cooperative's
+ * paper MEM form. Everything is held as a string while editing — numbers are
+ * parsed once, at submit, so a half-typed amount never becomes NaN in state.
+ */
 export interface SignUpData {
   email: string;
   password: string;
   full_name: string;
+  sex: string;
+  /** YYYY-MM-DD. */
+  date_of_birth: string;
   phone: string;
+  whatsapp_number: string;
+  marital_status: string;
   address: string;
+  id_card_number: string;
+  next_of_kin: string;
+  place_of_work: string;
+  type_of_business: string;
   bank_name: string;
   bank_account: string;
   bank_code: string;
+  referred_by: string;
+  /** Whole Naira, as typed. Validated against the window's min/max at step 4. */
+  monthly_subscription: string;
   avatar_url?: string;
-  next_of_kin?: string;
+  /** Base64 PNG data URL from the signature pad. */
+  signature?: string;
 }
 
 export interface SignUpResponse {
@@ -42,21 +60,17 @@ export interface SignUpResponse {
   email: string;
 }
 
-export interface SignUpErrors {
-  email?: string;
-  password?: string;
-  full_name?: string;
-  phone?: string;
-  address?: string;
-  bank_name?: string;
-  bank_account?: string;
-  bank_code?: string;
-  avatar_url?: string;
-  next_of_kin?: string;
+export type SignUpErrors = Partial<Record<keyof SignUpData, string>> & {
+  /** Cross-field problems: a rejected payment, a closed window, a missing consent. */
+  terms?: string;
   general?: string;
-}
+};
 
-export type SignUpStep = 1 | 2 | 3 | 4;
+/**
+ * 1 account · 2 personal · 3 work · 4 bank & subscription ·
+ * 5 photo & signature · 6 review & pay
+ */
+export type SignUpStep = 1 | 2 | 3 | 4 | 5 | 6;
 
 export interface BankOption {
   code: string;

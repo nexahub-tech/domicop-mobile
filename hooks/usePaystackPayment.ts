@@ -29,7 +29,9 @@ export interface PaystackResponse {
 export const usePaystackPayment = () => {
   const { popup } = usePaystack();
 
-  const generateReference = (type: 'contribution' | 'loan' = 'contribution') => {
+  const generateReference = (
+    type: 'contribution' | 'loan' | 'registration' = 'contribution',
+  ) => {
     const timestamp = Date.now();
     const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
     return `DOMI-${type.toUpperCase()}-${timestamp}-${random}`;
@@ -150,9 +152,62 @@ export const usePaystackPayment = () => {
     });
   };
 
+  /**
+   * Registration and social fees, paid during sign-up.
+   *
+   * Unlike the other two this cannot look the payer up — there is no account
+   * and no session yet — so the applicant's email and name come from the form
+   * being filled in. `metadata.purpose` is what tells the Paystack webhook this
+   * charge is already settled by POST /registration/apply and needs no
+   * contribution matching.
+   *
+   * `amount` is whole Naira, as everywhere in this hook: the library multiplies
+   * by 100 itself (see PaymentParams.amount).
+   */
+  const initiateRegistrationPayment = async (
+    params: PaymentParams & { fullName: string; email: string },
+  ) => {
+    const reference = params.reference || generateReference('registration');
+
+    popup.checkout({
+      email: params.email,
+      amount: params.amount,
+      reference,
+      metadata: {
+        ...params.metadata,
+        purpose: 'registration',
+        member_name: params.fullName,
+        custom_fields: [
+          {
+            display_name: 'Applicant Name',
+            variable_name: 'member_name',
+            value: params.fullName,
+          },
+          {
+            display_name: 'Transaction Type',
+            variable_name: 'transaction_type',
+            value: 'Membership Registration',
+          },
+          ...(params.metadata?.custom_fields || []),
+        ],
+      },
+      onSuccess: (response: any) => {
+        params.onSuccess?.(response);
+      },
+      onCancel: () => {
+        params.onCancel?.();
+      },
+      onError: (error) => {
+        console.error('Payment Error:', error);
+        params.onError?.(error);
+      },
+    });
+  };
+
   return {
     initiateContributionPayment,
     initiateLoanPayment,
+    initiateRegistrationPayment,
     generateReference,
   };
 };
