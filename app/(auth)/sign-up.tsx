@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  TouchableOpacity,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -17,11 +18,17 @@ import { FormCard } from "@/components/auth/FormCard";
 import { PasswordStrength } from "@/components/auth/PasswordStrength";
 import { DropdownSelect } from "@/components/forms/DropdownSelect";
 import { ProfileImagePicker } from "@/components/forms/ProfileImagePicker";
+import { SignaturePad } from "@/components/forms/SignaturePad";
 import { InfoModal } from "@/components/modals/InfoModal";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { lightColors } from "@/contexts/ThemeContext";
 import type { SignUpData, SignUpErrors, SignUpStep } from "@/types";
 import { auth } from "@/lib/api/auth.api";
+import { registration } from "@/lib/api/registration.api";
+import { useRegistrationWindow } from "@/hooks/useRegistrationWindow";
+import { usePaystackPayment } from "@/hooks/usePaystackPayment";
+import { formatNaira } from "@/lib/utils/currency";
+import { ApiError } from "@/lib/http";
 import { theme } from "@/styles/theme";
 import { font } from "@/constants/theme";
 
@@ -53,7 +60,53 @@ const NIGERIAN_BANKS = [
   { value: "101", label: "ProvidusBank (101)" },
 ];
 
-const TOTAL_STEPS = 4;
+const SEX_OPTIONS = [
+  { value: "Male", label: "Male" },
+  { value: "Female", label: "Female" },
+];
+
+const MARITAL_STATUS_OPTIONS = [
+  { value: "Single", label: "Single" },
+  { value: "Married", label: "Married" },
+  { value: "Divorced", label: "Divorced" },
+  { value: "Widowed", label: "Widowed" },
+];
+
+const TOTAL_STEPS = 6;
+
+/**
+ * Fallback fee figures, used only while the window is still loading so the
+ * review step never flashes ₦0. The window the server returns is authoritative
+ * — it is also what the payment is verified against, so these must never be
+ * used to build the actual charge.
+ */
+const FALLBACK_REGISTRATION_FEE = 20000;
+const FALLBACK_SOCIAL_FEE = 1000;
+
+/**
+ * One label/value line on the review step. Long values wrap rather than
+ * truncate — an address has to be checkable at a glance.
+ *
+ * Module level, not a closure inside the screen: a component redefined each
+ * render is a new type each render, so React would unmount and remount every
+ * row on every keystroke.
+ */
+function SummaryRow({
+  label,
+  value,
+  styles,
+}: {
+  label: string;
+  value: string;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  return (
+    <View style={styles.summaryRow}>
+      <Text style={styles.summaryLabel}>{label}</Text>
+      <Text style={styles.summaryValue}>{value || "—"}</Text>
+    </View>
+  );
+}
 
 export default function SignUpScreen() {
   const router = useRouter();
@@ -61,24 +114,52 @@ export default function SignUpScreen() {
   const insets = useSafeAreaInsets();
   const styles = createStyles(colors);
 
+  const { isOpen, window: win, isLoading: windowLoading } = useRegistrationWindow();
+  const { initiateRegistrationPayment } = usePaystackPayment();
+
   // Form state
   const [currentStep, setCurrentStep] = useState<SignUpStep>(1);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<SignUpErrors>({});
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const [formData, setFormData] = useState<SignUpData>({
     email: "",
     password: "",
     full_name: "",
+    sex: "",
+    date_of_birth: "",
     phone: "",
+    whatsapp_number: "",
+    marital_status: "",
     address: "",
+    id_card_number: "",
+    next_of_kin: "",
+    place_of_work: "",
+    type_of_business: "",
     bank_name: "",
     bank_account: "",
     bank_code: "",
+    referred_by: "",
+    monthly_subscription: "",
     avatar_url: "",
-    next_of_kin: "",
+    signature: "",
   });
+
+  const registrationFee = win?.registration_fee ?? FALLBACK_REGISTRATION_FEE;
+  const socialFee = win?.social_fee ?? FALLBACK_SOCIAL_FEE;
+  const totalDue = win?.total_due ?? registrationFee + socialFee;
+  const minSubscription = win?.min_monthly_subscription ?? 5000;
+  const maxSubscription = win?.max_monthly_subscription ?? 50000;
+
+  // The window can close while the form is being filled in. Bounce rather than
+  // let someone reach a checkout the server will refuse.
+  useEffect(() => {
+    if (!windowLoading && !isOpen) {
+      router.replace("/registration-closed");
+    }
+  }, [windowLoading, isOpen, router]);
 
   // Update form field
   const updateField = useCallback(
@@ -113,11 +194,28 @@ export default function SignUpScreen() {
     if (!formData.full_name || formData.full_name.length < 2) {
       newErrors.full_name = "Full name must be at least 2 characters";
     }
+    if (!formData.sex) {
+      newErrors.sex = "Please select an option";
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(formData.date_of_birth)) {
+      newErrors.date_of_birth = "Use the format YYYY-MM-DD";
+    } else if (Number.isNaN(Date.parse(formData.date_of_birth))) {
+      newErrors.date_of_birth = "That is not a real date";
+    }
+    if (!formData.marital_status) {
+      newErrors.marital_status = "Please select an option";
+    }
     if (!formData.phone || formData.phone.length < 10) {
       newErrors.phone = "Valid phone number is required";
     }
     if (!formData.address || formData.address.length < 5) {
       newErrors.address = "Address is required";
+    }
+    if (!formData.id_card_number || formData.id_card_number.length < 4) {
+      newErrors.id_card_number = "ID card number is required";
+    }
+    if (!formData.next_of_kin || formData.next_of_kin.length < 2) {
+      newErrors.next_of_kin = "Next of kin is required";
     }
 
     setErrors(newErrors);
@@ -125,6 +223,20 @@ export default function SignUpScreen() {
   };
 
   const validateStep3 = (): boolean => {
+    const newErrors: SignUpErrors = {};
+
+    if (!formData.place_of_work || formData.place_of_work.length < 2) {
+      newErrors.place_of_work = "Place of work is required";
+    }
+    if (!formData.type_of_business || formData.type_of_business.length < 2) {
+      newErrors.type_of_business = "Type of business is required";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const validateStep4 = (): boolean => {
     const newErrors: SignUpErrors = {};
 
     if (!formData.bank_name || formData.bank_name.length < 2) {
@@ -135,6 +247,26 @@ export default function SignUpScreen() {
     }
     if (!formData.bank_code) {
       newErrors.bank_code = "Please select a bank";
+    }
+
+    const subscription = Number(formData.monthly_subscription);
+    if (!formData.monthly_subscription || !Number.isFinite(subscription)) {
+      newErrors.monthly_subscription = "Enter your monthly subscription";
+    } else if (subscription < minSubscription || subscription > maxSubscription) {
+      newErrors.monthly_subscription = `Must be between ${formatNaira(minSubscription)} and ${formatNaira(maxSubscription)}`;
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const validateStep5 = (): boolean => {
+    const newErrors: SignUpErrors = {};
+
+    // The paper form is not valid unsigned, so neither is this one. The photo
+    // above it stays optional.
+    if (!formData.signature) {
+      newErrors.signature = "Please sign to continue";
     }
 
     setErrors(newErrors);
@@ -156,6 +288,12 @@ export default function SignUpScreen() {
         isValid = validateStep3();
         break;
       case 4:
+        isValid = validateStep4();
+        break;
+      case 5:
+        isValid = validateStep5();
+        break;
+      case 6:
         isValid = true;
         break;
     }
@@ -174,23 +312,119 @@ export default function SignUpScreen() {
     }
   };
 
+  /**
+   * Turn the completed form into a membership.
+   *
+   * Payment comes first and the account second, deliberately: the server will
+   * not create an account without a Paystack reference it can verify itself,
+   * so there is no window in which an unpaid account exists. The cost of that
+   * ordering is the reverse case — a charge that succeeds while the
+   * application fails — which is why the error below surfaces the reference
+   * rather than a generic failure. It is what support reconciles against.
+   */
+  const submitApplication = async (paymentReference: string) => {
+    try {
+      await registration.apply({
+        email: formData.email,
+        password: formData.password,
+        full_name: formData.full_name,
+        sex: formData.sex,
+        date_of_birth: formData.date_of_birth,
+        phone: formData.phone,
+        whatsapp_number: formData.whatsapp_number || undefined,
+        marital_status: formData.marital_status,
+        address: formData.address,
+        id_card_number: formData.id_card_number,
+        next_of_kin: formData.next_of_kin,
+        place_of_work: formData.place_of_work,
+        type_of_business: formData.type_of_business,
+        bank_name: formData.bank_name,
+        bank_account: formData.bank_account,
+        bank_code: formData.bank_code,
+        referred_by: formData.referred_by || undefined,
+        monthly_subscription: Number(formData.monthly_subscription),
+        avatar_url: formData.avatar_url || undefined,
+        signature: formData.signature || undefined,
+        payment_reference: paymentReference,
+      });
+
+      // Accounts are usable immediately (approval gates features, not sign-in),
+      // so log the new member straight in to establish a session.
+      await auth.login(formData.email, formData.password);
+      setShowSuccessModal(true);
+    } catch (error) {
+      const message =
+        error instanceof ApiError || error instanceof Error
+          ? error.message
+          : "Registration failed. Please try again.";
+      setErrors({
+        general: `${message}\n\nYour payment reference is ${paymentReference} — quote it if you need to contact support.`,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Handle form submission
   const handleSubmit = async () => {
+    if (!acceptedTerms) {
+      setErrors({ terms: "Please accept the membership terms to continue." });
+      return;
+    }
+
     setIsLoading(true);
     setErrors({});
 
     try {
-      await auth.register(formData);
-      // Accounts are active immediately (no email verification step), so log
-      // the new user straight in to establish a session for the dashboard.
-      await auth.login(formData.email, formData.password);
-      setShowSuccessModal(true);
-    } catch (error) {
-      setErrors({
-        general: error instanceof Error ? error.message : "Registration failed. Please try again.",
+      // Free rejections first. Without this, an email that is already
+      // registered would be discovered only after ₦21,000 had changed hands.
+      await registration.precheck({
+        email: formData.email,
+        monthly_subscription: Number(formData.monthly_subscription),
       });
-    } finally {
+    } catch (error) {
       setIsLoading(false);
+      setErrors({
+        general:
+          error instanceof ApiError || error instanceof Error
+            ? error.message
+            : "We could not verify your details. Please try again.",
+      });
+      return;
+    }
+
+    try {
+      await initiateRegistrationPayment({
+        // Whole Naira — react-native-paystack-webview multiplies by 100 itself
+        // (see PaymentParams.amount and docs/currency-contract.md §3).
+        amount: totalDue,
+        email: formData.email,
+        fullName: formData.full_name,
+        onSuccess: (response) => {
+          void submitApplication(response.reference);
+        },
+        onCancel: () => {
+          setIsLoading(false);
+          setErrors({ general: "Payment was cancelled. Your details are still here." });
+        },
+        onError: (error) => {
+          setIsLoading(false);
+          setErrors({
+            general:
+              error instanceof Error
+                ? error.message
+                : "We could not start the payment. Please try again.",
+          });
+        },
+      });
+    } catch (error) {
+      setIsLoading(false);
+      setErrors({
+        general:
+          error instanceof Error
+            ? error.message
+            : "We could not start the payment. Please try again.",
+      });
     }
   };
 
@@ -208,7 +442,7 @@ export default function SignUpScreen() {
   // Render step indicator
   const renderStepIndicator = () => (
     <View style={styles.stepIndicator}>
-      {[1, 2, 3, 4].map((step) => (
+      {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((step) => (
         <View key={step} style={styles.stepContainer}>
           <View
             style={[
@@ -248,9 +482,13 @@ export default function SignUpScreen() {
       case 2:
         return "Personal Information";
       case 3:
-        return "Bank Details";
+        return "Work & Business";
       case 4:
-        return "Profile Photo";
+        return "Bank & Subscription";
+      case 5:
+        return "Photo & Signature";
+      case 6:
+        return "Review & Pay";
       default:
         return "";
     }
@@ -263,9 +501,13 @@ export default function SignUpScreen() {
       case 2:
         return "Tell us a bit about yourself";
       case 3:
-        return "Add your bank details for transactions";
+        return "What you do, and who referred you";
       case 4:
-        return "Add a profile photo (optional)";
+        return "Bank details and your monthly subscription";
+      case 5:
+        return "Add a photo and sign your application";
+      case 6:
+        return "Check your details and pay the registration fee";
       default:
         return "";
     }
@@ -310,6 +552,40 @@ export default function SignUpScreen() {
         error={errors.full_name}
       />
 
+      <View>
+        <DropdownSelect
+          label="Sex"
+          value={formData.sex}
+          options={SEX_OPTIONS}
+          onSelect={(value) => updateField("sex", value)}
+          placeholder="Select"
+        />
+        {errors.sex && <Text style={styles.errorText}>{errors.sex}</Text>}
+      </View>
+
+      <Input
+        label="Date of Birth"
+        placeholder="YYYY-MM-DD"
+        value={formData.date_of_birth}
+        onChangeText={(text) => updateField("date_of_birth", text)}
+        keyboardType="numeric"
+        helper="For example 1990-04-27"
+        error={errors.date_of_birth}
+      />
+
+      <View>
+        <DropdownSelect
+          label="Marital Status"
+          value={formData.marital_status}
+          options={MARITAL_STATUS_OPTIONS}
+          onSelect={(value) => updateField("marital_status", value)}
+          placeholder="Select"
+        />
+        {errors.marital_status && (
+          <Text style={styles.errorText}>{errors.marital_status}</Text>
+        )}
+      </View>
+
       <Input
         label="Phone Number"
         placeholder="+234 123 456 7890"
@@ -317,6 +593,15 @@ export default function SignUpScreen() {
         onChangeText={(text) => updateField("phone", text)}
         keyboardType="phone-pad"
         error={errors.phone}
+      />
+
+      <Input
+        label="WhatsApp Number (Optional)"
+        placeholder="+234 123 456 7890"
+        value={formData.whatsapp_number}
+        onChangeText={(text) => updateField("whatsapp_number", text)}
+        keyboardType="phone-pad"
+        helper="Leave blank if it is the same as your phone number"
       />
 
       <Input
@@ -331,17 +616,59 @@ export default function SignUpScreen() {
       />
 
       <Input
-        label="Next of Kin (Optional)"
+        label="ID Card Number"
+        placeholder="NIN, Voter's Card or Driver's Licence"
+        value={formData.id_card_number}
+        onChangeText={(text) => updateField("id_card_number", text)}
+        autoCapitalize="characters"
+        error={errors.id_card_number}
+      />
+
+      <Input
+        label="Next of Kin"
         placeholder="Name - Phone Number"
-        value={formData.next_of_kin || ""}
+        value={formData.next_of_kin}
         onChangeText={(text) => updateField("next_of_kin", text)}
         helper="Emergency contact information"
+        error={errors.next_of_kin}
       />
     </View>
   );
 
-  // Render Step 3: Bank Details
+  // Render Step 3: Work & Business
   const renderStep3 = () => (
+    <View style={styles.stepContent}>
+      <Input
+        label="Place of Work"
+        placeholder="Employer or business name"
+        value={formData.place_of_work}
+        onChangeText={(text) => updateField("place_of_work", text)}
+        autoCapitalize="words"
+        error={errors.place_of_work}
+      />
+
+      <Input
+        label="Type of Business"
+        placeholder="Trading, teaching, tailoring…"
+        value={formData.type_of_business}
+        onChangeText={(text) => updateField("type_of_business", text)}
+        autoCapitalize="sentences"
+        error={errors.type_of_business}
+      />
+
+      <Input
+        label="Who Referred You? (Optional)"
+        placeholder="Name of the member who introduced you"
+        value={formData.referred_by}
+        onChangeText={(text) => updateField("referred_by", text)}
+        autoCapitalize="words"
+        helper="Leave blank if nobody referred you"
+      />
+    </View>
+  );
+
+  // Render Step 4: Bank Details & Subscription
+  const renderStep4 = () => (
     <View style={styles.stepContent}>
       <DropdownSelect
         label="Select Bank"
@@ -369,6 +696,16 @@ export default function SignUpScreen() {
         error={errors.bank_account}
       />
 
+      <Input
+        label="Monthly Subscription"
+        placeholder={String(minSubscription)}
+        value={formData.monthly_subscription}
+        onChangeText={(text) => updateField("monthly_subscription", text)}
+        keyboardType="numeric"
+        helper={`Between ${formatNaira(minSubscription)} and ${formatNaira(maxSubscription)} per month`}
+        error={errors.monthly_subscription}
+      />
+
       <View style={styles.bankInfoCard}>
         <MaterialIcons name="info" size={20} color={colors.info} />
         <Text style={styles.bankInfoText}>
@@ -379,8 +716,8 @@ export default function SignUpScreen() {
     </View>
   );
 
-  // Render Step 4: Profile Photo
-  const renderStep4 = () => (
+  // Render Step 5: Profile Photo & Signature
+  const renderStep5 = () => (
     <View style={styles.stepContent}>
       <View style={styles.photoSection}>
         <ProfileImagePicker
@@ -394,6 +731,71 @@ export default function SignUpScreen() {
           for identification purposes.
         </Text>
       </View>
+
+      <SignaturePad
+        label="Signature"
+        value={formData.signature || null}
+        onChange={(signature) => updateField("signature", signature ?? "")}
+        helper="Your signature completes the membership form, exactly as it would on paper."
+        error={errors.signature}
+      />
+    </View>
+  );
+
+  // Render Step 6: Review & Pay
+  const renderStep6 = () => (
+    <View style={styles.stepContent}>
+      <View style={styles.summaryCard}>
+        <Text style={styles.summaryTitle}>Your details</Text>
+        <SummaryRow styles={styles} label="Name" value={formData.full_name} />
+        <SummaryRow styles={styles} label="Email" value={formData.email} />
+        <SummaryRow styles={styles} label="Phone" value={formData.phone} />
+        <SummaryRow styles={styles} label="Date of birth" value={formData.date_of_birth} />
+        <SummaryRow styles={styles} label="Address" value={formData.address} />
+        <SummaryRow styles={styles} label="Bank" value={`${formData.bank_name} · ${formData.bank_account}`} />
+        <SummaryRow
+          styles={styles}
+          label="Monthly subscription"
+          value={formatNaira(Number(formData.monthly_subscription || 0))}
+        />
+      </View>
+
+      <View style={styles.feeCard}>
+        <Text style={styles.summaryTitle}>Registration fees</Text>
+        <SummaryRow styles={styles} label="Registration fee" value={formatNaira(registrationFee)} />
+        <SummaryRow styles={styles} label="Social fee" value={formatNaira(socialFee)} />
+        <View style={styles.feeDivider} />
+        <View style={styles.feeTotalRow}>
+          <Text style={styles.feeTotalLabel}>Total due now</Text>
+          <Text style={styles.feeTotalValue}>{formatNaira(totalDue)}</Text>
+        </View>
+        <Text style={styles.feeNote}>
+          The registration fee is non-refundable. Payment is taken once, now, and
+          your membership stays pending until an officer approves it.
+        </Text>
+      </View>
+
+      {/* The footer of the paper MEM form, made explicit rather than implied. */}
+      <TouchableOpacity
+        style={styles.termsRow}
+        onPress={() => {
+          setAcceptedTerms((prev) => !prev);
+          if (errors.terms) setErrors((prev) => ({ ...prev, terms: undefined }));
+        }}
+        activeOpacity={0.7}
+      >
+        <MaterialIcons
+          name={acceptedTerms ? "check-box" : "check-box-outline-blank"}
+          size={24}
+          color={acceptedTerms ? colors.primary : colors.onSurfaceVariant}
+        />
+        <Text style={styles.termsText}>
+          I understand that non-payment of my subscription for three consecutive
+          months results in automatic withdrawal from the cooperative, and that the
+          registration fee is non-refundable.
+        </Text>
+      </TouchableOpacity>
+      {errors.terms && <Text style={styles.errorText}>{errors.terms}</Text>}
 
       {errors.general && (
         <View style={styles.errorContainer}>
@@ -415,6 +817,10 @@ export default function SignUpScreen() {
         return renderStep3();
       case 4:
         return renderStep4();
+      case 5:
+        return renderStep5();
+      case 6:
+        return renderStep6();
       default:
         return null;
     }
@@ -488,7 +894,11 @@ export default function SignUpScreen() {
               ) : (
                 <View style={styles.buttonWrapper}>
                   <Button
-                    title={isLoading ? "Creating Account..." : "Create Account"}
+                    title={
+                      isLoading
+                        ? "Processing..."
+                        : `Pay ${formatNaira(totalDue)}`
+                    }
                     onPress={handleSubmit}
                     variant="primary"
                     size="lg"
@@ -520,7 +930,7 @@ export default function SignUpScreen() {
         onClose={handleSuccessModalClose}
         icon="check-circle"
         title="Welcome to DOMICOOP!"
-        message="Your account has been created successfully. You're all set to get started."
+        message="Your application and registration fee have been received. Your membership is pending approval — an officer will review it shortly."
         primaryButtonText="Go to Dashboard"
         onPrimaryPress={handleSuccessModalClose}
         showCloseButton={false}
@@ -592,10 +1002,12 @@ const createStyles = (colors: typeof lightColors) =>
       color: colors.onPrimary,
     },
     stepLine: {
-      width: 40,
+      // Six dots, not four — the connector shrinks so the rail still fits a
+      // narrow screen without wrapping.
+      width: 18,
       height: 2,
       backgroundColor: colors.outlineVariant,
-      marginHorizontal: theme.spacing.sm,
+      marginHorizontal: theme.spacing.xs,
     },
     stepLineCompleted: {
       backgroundColor: colors.success,
@@ -652,6 +1064,81 @@ const createStyles = (colors: typeof lightColors) =>
       textAlign: "center",
       marginTop: theme.spacing.lg,
       paddingHorizontal: theme.spacing.xl,
+    },
+    summaryCard: {
+      backgroundColor: colors.surfaceContainerLow,
+      borderRadius: theme.borderRadius.xl,
+      padding: theme.spacing.lg,
+      gap: theme.spacing.md,
+    },
+    feeCard: {
+      backgroundColor: colors.infoContainer,
+      borderRadius: theme.borderRadius.xl,
+      padding: theme.spacing.lg,
+      gap: theme.spacing.md,
+    },
+    summaryTitle: {
+      fontFamily: font("display", "bold"),
+      fontSize: theme.typography.size.base,
+      color: colors.onSurface,
+      marginBottom: theme.spacing.xs,
+    },
+    summaryRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: theme.spacing.base,
+    },
+    summaryLabel: {
+      flex: 1,
+      fontFamily: font("body", "regular"),
+      fontSize: theme.typography.size.sm,
+      color: colors.onSurfaceVariant,
+    },
+    summaryValue: {
+      flex: 1.4,
+      fontFamily: font("body", "bold"),
+      fontSize: theme.typography.size.sm,
+      color: colors.onSurface,
+      textAlign: "right",
+    },
+    feeDivider: {
+      height: 1,
+      backgroundColor: colors.outlineVariant,
+      marginVertical: theme.spacing.xs,
+    },
+    feeTotalRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    feeTotalLabel: {
+      fontFamily: font("display", "bold"),
+      fontSize: theme.typography.size.base,
+      color: colors.onSurface,
+    },
+    feeTotalValue: {
+      fontFamily: font("display", "bold"),
+      fontSize: theme.typography.size.lg,
+      color: colors.primaryBright,
+    },
+    feeNote: {
+      fontFamily: font("body", "regular"),
+      fontSize: theme.typography.size.xs,
+      color: colors.onSurfaceVariant,
+      lineHeight: theme.typography.size.xs * 1.6,
+    },
+    termsRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: theme.spacing.base,
+      paddingVertical: theme.spacing.sm,
+    },
+    termsText: {
+      flex: 1,
+      fontFamily: font("body", "regular"),
+      fontSize: theme.typography.size.sm,
+      color: colors.onSurfaceVariant,
+      lineHeight: theme.typography.size.sm * 1.5,
     },
     errorContainer: {
       flexDirection: "row",

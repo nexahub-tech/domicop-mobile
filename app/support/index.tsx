@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -12,7 +12,6 @@ import { createElevation } from '@/constants/theme';
 import { ScreenHeader } from '@/components/common/ScreenHeader';
 import { Button } from '@/components/common/Button';
 import { FAQAccordion } from '@/components/support/FAQAccordion';
-import { ChatBottomSheet } from '@/components/modals/ChatBottomSheet';
 import { faqData } from '@/constants/support';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
@@ -66,7 +65,6 @@ const QuickActionButton: React.FC<QuickActionButtonProps> = ({
 export default function SupportHelpScreen() {
   const router = useRouter();
   const { colors, isDarkMode } = useTheme();
-  const [isChatOpen, setIsChatOpen] = useState(false);
   const styles = createStyles(colors);
   const elevations = createElevation(colors);
 
@@ -74,17 +72,11 @@ export default function SupportHelpScreen() {
     router.back();
   };
 
-  const handleLiveChat = () => {
-    setIsChatOpen(true);
-  };
-
-  const handleContactAdmin = () => {
-    // Open email client
+  // Live chat was removed as a support option. Both entry points now go to
+  // email — leaving "Start Conversation" on the chat sheet would have kept the
+  // channel reachable, just less obviously.
+  const openSupportEmail = () => {
     Linking.openURL('mailto:support@domicoop.com?subject=Support Request');
-  };
-
-  const handleStartConversation = () => {
-    setIsChatOpen(true);
   };
 
   return (
@@ -116,21 +108,12 @@ export default function SupportHelpScreen() {
         {/* Quick Actions */}
         <View style={styles.quickActionsContainer}>
           <QuickActionButton
-            icon="chat"
-            label="Live Chat"
-            subtitle="Instant support"
-            onPress={handleLiveChat}
-            variant="primary"
-            index={0}
-            colors={colors}
-          />
-          <QuickActionButton
             icon="admin-panel-settings"
             label="Contact Admin"
             subtitle="Formal requests"
-            onPress={handleContactAdmin}
-            variant="secondary"
-            index={1}
+            onPress={openSupportEmail}
+            variant="primary"
+            index={0}
             colors={colors}
           />
         </View>
@@ -160,7 +143,7 @@ export default function SupportHelpScreen() {
             </Text>
             <Button
               title="Start Conversation"
-              onPress={handleStartConversation}
+              onPress={openSupportEmail}
               variant="primary"
               size="md"
               fullWidth
@@ -171,12 +154,6 @@ export default function SupportHelpScreen() {
         {/* Bottom padding */}
         <View style={styles.bottomPadding} />
       </ScrollView>
-
-      {/* Chat Bottom Sheet */}
-      <ChatBottomSheet
-        visible={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
-      />
     </SafeAreaView>
   );
 }

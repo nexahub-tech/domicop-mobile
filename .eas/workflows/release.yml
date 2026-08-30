@@ -1,0 +1,59 @@
+name: Release
+
+# Fires automatically when a version tag is pushed (e.g. `git tag v6.0.1 && git push origin v6.0.1`).
+# Can also be run on demand: `eas workflow:run .eas/workflows/release.yml -F platform=android`
+on:
+  push:
+    tags:
+      - v*
+  workflow_dispatch:
+    inputs:
+      platform:
+        type: choice
+        description: Which platforms to build and submit
+        options:
+          - all
+          - android
+          - ios
+        default: all
+        required: false
+
+concurrency:
+  cancel_in_progress: true
+  group: ${{ workflow.filename }}-${{ github.ref }}
+
+jobs:
+  build_android:
+    name: Build Android
+    type: build
+    # Skipped builds skip their dependent submit job too.
+    if: ${{ (inputs.platform || 'all') != 'ios' }}
+    params:
+      platform: android
+      profile: production
+      message: ${{ github.ref_name }}
+
+  build_ios:
+    name: Build iOS
+    type: build
+    if: ${{ (inputs.platform || 'all') != 'android' }}
+    params:
+      platform: ios
+      profile: production
+      message: ${{ github.ref_name }}
+
+  submit_android:
+    name: Submit to Google Play
+    type: submit
+    needs: [build_android]
+    params:
+      build_id: ${{ needs.build_android.outputs.build_id }}
+      profile: production
+
+  submit_ios:
+    name: Submit to App Store Connect
+    type: submit
+    needs: [build_ios]
+    params:
+      build_id: ${{ needs.build_ios.outputs.build_id }}
+      profile: production

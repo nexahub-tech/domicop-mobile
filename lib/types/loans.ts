@@ -63,6 +63,40 @@ export interface ApiLoan {
   disbursed_at?: string | null;
   created_at?: string;
   updated_at?: string;
+
+  // Paper-form fields, present on GET /loans/:id.
+  amount_in_words?: string | null;
+  applicant_address?: string | null;
+  applicant_bank_name?: string | null;
+  applicant_bank_account?: string | null;
+  applicant_phone?: string | null;
+  grace_months?: number;
+  first_installment_on?: string | null;
+  approved_at?: string | null;
+  /** SHORT-LIVED signed URL minted per request — the bucket is private. Do not cache. */
+  bond_url?: string | null;
+  bond_cancelled_at?: string | null;
+  loan_guarantors?: ApiLoanGuarantor[];
+  loan_installments?: ApiLoanInstallment[];
+}
+
+/** Part B. Signatures are not returned to the borrower — they are other people's handwriting. */
+export interface ApiLoanGuarantor {
+  position: number;
+  full_name: string;
+  bank_name: string;
+  bank_account: string;
+  phone: string;
+  signed_at: string | null;
+}
+
+/** One dated row of Part A item 8. */
+export interface ApiLoanInstallment {
+  installment_no: number;
+  due_on: string;
+  amount: number;
+  paid_amount: number;
+  status: "pending" | "paid" | "late";
 }
 
 export interface ApiLoansResponse {

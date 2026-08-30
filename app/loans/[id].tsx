@@ -18,6 +18,9 @@ import { TransactionDetailCard } from "@/components/savings/TransactionDetailCar
 import { getLoanTypeConfig } from "@/constants/loans";
 import { formatCurrencyNoSign } from "@/lib/utils/format";
 import { useLoans } from "@/hooks/useLoans";
+import { useQuery } from "@tanstack/react-query";
+import * as Linking from "expo-linking";
+import { loansApi } from "@/lib/api/loans.api";
 import type { LoanStatus } from "@/lib/types/loans";
 
 const STATUS_META: Record<LoanStatus, { badge: BadgeStatus; label: string }> = {
@@ -38,6 +41,15 @@ export default function LoanDetailScreen() {
   // Served from the loans query cache populated by the list screen.
   const { loans, isLoading } = useLoans();
   const loan = loans.find((l) => l.id === id);
+
+  // The list only carries the loan summary. Guarantors, the signed repayment
+  // schedule and the bond come from the detail endpoint, so they are fetched
+  // separately and rendered when they arrive rather than blocking the screen.
+  const { data: detail } = useQuery({
+    queryKey: ["loan-detail", id],
+    queryFn: () => loansApi.getById(id!),
+    enabled: !!id,
+  });
 
   const handleBack = () => {
     router.back();
@@ -195,6 +207,90 @@ export default function LoanDetailScreen() {
           />
         </Animated.View>
 
+        {/* Part A item 8 — the schedule the borrower signed */}
+        {!!detail?.loan_installments?.length && (
+          <Animated.View
+            entering={FadeInUp.delay(400).duration(400)}
+            style={[styles.sectionCard, elevations.flat]}
+          >
+            <Text style={styles.sectionTitle}>Repayment Schedule</Text>
+            <Text style={styles.scheduleNote}>
+              {detail.grace_months ?? 1} month grace after disbursement, then{" "}
+              {detail.loan_installments.length} equal installments.
+            </Text>
+            {detail.loan_installments.map((row) => (
+              <View key={row.installment_no} style={styles.scheduleRow}>
+                <Text style={styles.scheduleMonth}>
+                  {row.installment_no}.{" "}
+                  {new Date(row.due_on).toLocaleDateString(undefined, {
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </Text>
+                <View style={styles.scheduleRight}>
+                  <Text style={styles.scheduleAmount}>
+                    ₦{formatCurrencyNoSign(Number(row.amount))}
+                  </Text>
+                  <Badge
+                    status={
+                      row.status === "paid"
+                        ? "success"
+                        : row.status === "late"
+                          ? "error"
+                          : "neutral"
+                    }
+                    label={row.status.toUpperCase()}
+                  />
+                </View>
+              </View>
+            ))}
+          </Animated.View>
+        )}
+
+        {/* Part B — guarantors */}
+        {!!detail?.loan_guarantors?.length && (
+          <Animated.View
+            entering={FadeInUp.delay(500).duration(400)}
+            style={[styles.sectionCard, elevations.flat]}
+          >
+            <Text style={styles.sectionTitle}>Guarantors</Text>
+            {detail.loan_guarantors.map((g) => (
+              <View key={g.position} style={styles.guarantorRow}>
+                <Text style={styles.guarantorName}>
+                  {g.position}. {g.full_name}
+                </Text>
+                <Text style={styles.guarantorMeta}>
+                  {g.bank_name} · {g.bank_account}
+                </Text>
+              </View>
+            ))}
+          </Animated.View>
+        )}
+
+        {/* The bond deed itself */}
+        {!!detail?.bond_url && (
+          <Animated.View
+            entering={FadeInUp.delay(600).duration(400)}
+            style={[styles.sectionCard, elevations.flat]}
+          >
+            <Text style={styles.sectionTitle}>Loan Bond</Text>
+            <Text style={styles.scheduleNote}>
+              {detail.bond_cancelled_at
+                ? "This loan is fully repaid and the bond has been cancelled."
+                : "Your signed bond, as approved by the Secretary and President."}
+            </Text>
+            <Button
+              title="Open Loan Bond"
+              onPress={() => Linking.openURL(detail.bond_url!)}
+              variant="tonal"
+              size="lg"
+              icon="picture-as-pdf"
+              iconPosition="left"
+              fullWidth
+            />
+          </Animated.View>
+        )}
+
         <View style={styles.bottomPadding} />
       </ScrollView>
     </SafeAreaView>
@@ -315,6 +411,53 @@ const createStyles = (colors: typeof lightColors) =>
     },
     actionContainer: {
       marginTop: theme.spacing.base,
+    },
+    scheduleNote: {
+      ...typography.styles.bodySmall,
+      fontSize: typography.size.xs,
+      color: colors.onSurfaceVariant,
+      marginBottom: theme.spacing.base,
+      lineHeight: 18,
+    },
+    scheduleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingVertical: theme.spacing.sm,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.outlineVariant,
+      gap: theme.spacing.base,
+    },
+    scheduleMonth: {
+      ...typography.styles.bodySmall,
+      fontSize: typography.size.xs,
+      color: colors.onSurfaceVariant,
+      flex: 1,
+    },
+    scheduleRight: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: theme.spacing.sm,
+    },
+    scheduleAmount: {
+      ...typography.styles.label,
+      fontSize: typography.size.xs,
+      color: colors.onSurface,
+    },
+    guarantorRow: {
+      paddingVertical: theme.spacing.sm,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.outlineVariant,
+    },
+    guarantorName: {
+      ...typography.styles.label,
+      fontSize: typography.size.sm,
+      color: colors.onSurface,
+    },
+    guarantorMeta: {
+      ...typography.styles.bodySmall,
+      fontSize: typography.size.xs,
+      color: colors.onSurfaceVariant,
     },
     bottomPadding: {
       height: 40,

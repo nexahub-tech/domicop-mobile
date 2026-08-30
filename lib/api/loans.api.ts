@@ -13,11 +13,31 @@ import {
 // Amount and tenure are naira / months; interest is derived server-side and
 // must not be sent. `purpose` is free text (≥ 10 chars); `type` is the loan
 // category enum.
+export interface LoanGuarantorInput {
+  full_name: string;
+  bank_name: string;
+  bank_account: string;
+  phone: string;
+  /** Base64 PNG from the signature pad. */
+  signature: string;
+}
+
 export interface LoanApplicationPayload {
   amount: number;
   purpose: string;
   type: LoanType;
   tenure_months: number;
+  // Part A items 2–4 and 7. Prefilled from the profile but sent explicitly:
+  // the server stores them as snapshots, because the bond is a legal record of
+  // what was signed and must not change when a profile is edited later.
+  applicant_address: string;
+  applicant_bank_name: string;
+  applicant_bank_account: string;
+  applicant_phone: string;
+  /** Part A item 9. */
+  borrower_signature: string;
+  /** Part B — exactly three, all required by the paper form. */
+  guarantors: LoanGuarantorInput[];
 }
 
 /**
@@ -74,6 +94,18 @@ export const loansApi = {
    * returns the created loan; the client shows a confirmation and refreshes
    * the loans list. Interest/terms may be re-derived server-side.
    */
+  /**
+   * The full application, not just the summary in the list.
+   *
+   * GET /loans/me returns bare loan rows; the guarantors, the signed repayment
+   * schedule and the bond only come back from GET /loans/:id. Returned as the
+   * raw wire shape because the display transform (`transformLoan`) collapses
+   * server statuses into UI buckets and drops the paper-form fields.
+   */
+  getById: async (id: string): Promise<ApiLoan> => {
+    return authedRequest<ApiLoan>(`/loans/${id}`);
+  },
+
   apply: async (payload: LoanApplicationPayload): Promise<Loan | null> => {
     try {
       const response = await authedRequest<{ loan?: ApiLoan } | ApiLoan>(
