@@ -23,10 +23,57 @@ concurrency:
   group: ${{ workflow.filename }}-${{ github.ref }}
 
 jobs:
+  check_version:
+    name: Check tag matches app version
+    # Always runs, rather than being gated by `if`. A skipped job skips the
+    # jobs that need it, which would silently disable the builds on a
+    # workflow_dispatch run — so the tag test lives inside the script instead.
+    steps:
+      - uses: eas/checkout
+      - uses: eas/install_node_modules
+      - name: Compare the git tag to expo.version
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.ref_type }}" != "tag" ]; then
+            echo "Not a tag run — nothing to compare."
+            exit 0
+          fi
+
+          TAG="${{ github.ref_name }}"
+          # Read the resolved config rather than grepping the file, so this
+          # keeps working if `version` ever stops being a plain literal.
+          VERSION="$(npx --yes expo config --type public --json | node -e '
+            let raw = "";
+            process.stdin.on("data", (c) => (raw += c));
+            process.stdin.on("end", () => {
+              const cfg = JSON.parse(raw);
+              process.stdout.write(String(cfg.version ?? ""));
+            });
+          ')"
+
+          echo "tag:              $TAG"
+          echo "expo.version:     $VERSION"
+
+          if [ "$TAG" != "v$VERSION" ]; then
+            echo ""
+            echo "Tag \"$TAG\" does not match version \"$VERSION\" in app.config.js."
+            echo ""
+            echo "EAS auto-increments versionCode/buildNumber, but NOT the version"
+            echo "string — so this release would ship to the stores labelled"
+            echo "$VERSION while being tagged $TAG."
+            echo ""
+            echo "Set expo.version to ${TAG#v} in app.config.js, or tag v$VERSION."
+            exit 1
+          fi
+
+          echo "Tag and version agree."
+
   build_android:
     name: Build Android
     type: build
     # Skipped builds skip their dependent submit job too.
+    needs: [check_version]
     if: ${{ (inputs.platform || 'all') != 'ios' }}
     params:
       platform: android
@@ -36,6 +83,7 @@ jobs:
   build_ios:
     name: Build iOS
     type: build
+    needs: [check_version]
     if: ${{ (inputs.platform || 'all') != 'android' }}
     params:
       platform: ios
