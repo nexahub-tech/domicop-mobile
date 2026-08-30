@@ -10,7 +10,10 @@ export default {
   expo: {
     name: process.env.APP_ENV === "production" ? "DOMICOOP" : "DOMICOOP (DEV)",
     slug: "domicoop",
-    version: "6.0.0",
+    // 6.0.0 is already published to Play (versionCode 6, uploaded by hand
+    // before this project used EAS submit). Play rejects a duplicate version
+    // name, so the next release starts here.
+    version: "6.0.1",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: process.env.EXPO_PUBLIC_SCHEME || "domicoop",
