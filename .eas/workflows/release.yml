@@ -69,6 +69,59 @@ jobs:
 
           echo "Tag and version agree."
 
+          # --- the version must also be newer than everything already shipped ---
+          #
+          # The check above only proves the tag and the config agree. Releasing
+          # a version that has already shipped would still pass it, build with
+          # a bumped build number, and only be rejected by the store at submit
+          # time — after the build minutes are gone.
+          #
+          # EAS build history is the source of truth here, not git tags. Tags
+          # cannot answer this: a force-retag of an existing tag is
+          # indistinguishable from a new one from inside the job, and
+          # `eas/checkout` is not documented to fetch tags at all.
+          SHIPPED="$(npx --yes eas-cli@latest build:list \
+            --profile production --status finished --limit 50 \
+            --json --non-interactive 2>/dev/null | node -e '
+              let raw = "";
+              process.stdin.on("data", (c) => (raw += c));
+              process.stdin.on("end", () => {
+                let builds = [];
+                try { builds = JSON.parse(raw); } catch { process.exit(0); }
+                const seen = [...new Set(builds.map((b) => b.appVersion).filter(Boolean))];
+                process.stdout.write(seen.join("\n"));
+              });
+            ' || true)"
+
+          if [ -z "$SHIPPED" ]; then
+            # Not proven safe, just unverifiable. Say which it is rather than
+            # letting a silent pass look like a green check.
+            echo "Could not read EAS build history — skipping the newer-than check."
+            exit 0
+          fi
+
+          echo "already shipped:  $(echo "$SHIPPED" | tr '\n' ' ')"
+
+          if echo "$SHIPPED" | grep -qFx "$VERSION"; then
+            echo ""
+            echo "Version $VERSION has already been built and released."
+            echo "The stores reject a duplicate version string, so this would"
+            echo "fail at submit time. Bump expo.version and retag."
+            exit 1
+          fi
+
+          # sort -V is version-aware, so 6.0.10 correctly outranks 6.0.2.
+          HIGHEST="$(printf '%s\n' "$SHIPPED" | sort -V | tail -1)"
+          if [ "$(printf '%s\n%s\n' "$VERSION" "$HIGHEST" | sort -V | head -1)" = "$VERSION" ]; then
+            echo ""
+            echo "Version $VERSION is older than $HIGHEST, which has already shipped."
+            echo "Releases must move forward — the stores will not accept a"
+            echo "version below one already published."
+            exit 1
+          fi
+
+          echo "Version $VERSION is newer than everything shipped so far."
+
   build_android:
     name: Build Android
     type: build
