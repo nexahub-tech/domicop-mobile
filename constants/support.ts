@@ -27,7 +27,7 @@ export const faqData: FAQ[] = [
     icon: "schedule",
     question: "Payment methods and schedules",
     answer:
-      "Payments are typically processed on the 1st and 15th of each month. We support bank transfers, mobile money, and direct debit from your DOMICOOP wallet.",
+      "The repayment schedule runs from the 1st to the 31st of every month. We support bank transfers, mobile money, and direct debit from your DOMICOOP wallet.",
   },
   {
     id: "faq-004",
